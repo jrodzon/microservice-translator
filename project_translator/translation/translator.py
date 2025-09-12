@@ -1,0 +1,427 @@
+"""
+Main translation engine for project translation.
+
+This module implements the core translation engine that orchestrates
+the translation process using LLM providers and MCP protocol.
+"""
+
+import json
+import time
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Tuple
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+
+from .protocols.mcp import MCPProtocol, MCPMessage, MCPMessageType
+from .llm_providers.base import BaseLLMProvider, LLMResponse
+from .tools.file_operations import FileOperationsTool
+from .tools.project_analysis import ProjectAnalysisTool
+from project_translator.utils import get_logger
+
+console = Console()
+logger = get_logger("translator")
+
+
+class ProjectTranslator:
+    """Main translation engine for project translation."""
+    
+    def __init__(self, llm_provider: BaseLLMProvider, source_lang: str, target_lang: str):
+        """
+        Initialize project translator.
+        
+        Args:
+            llm_provider: LLM provider instance
+            source_lang: Source programming language
+            target_lang: Target programming language
+        """
+        self.llm_provider = llm_provider
+        self.source_lang = source_lang
+        self.target_lang = target_lang
+        self.mcp_protocol = MCPProtocol()
+        self.conversation_history: List[Dict[str, Any]] = []
+        self.translation_stats = {
+            "files_read": 0,
+            "files_written": 0,
+            "tool_calls": 0,
+            "errors": 0,
+            "start_time": None,
+            "end_time": None
+        }
+        
+        logger.info(f"ProjectTranslator initialized: {source_lang} -> {target_lang}")
+    
+    def translate_project(self, source_path: str, output_path: str, 
+                         max_iterations: int = 50,
+                         save_conversation: bool = True,
+                         conversation_file: str = "translation_conversation.json",
+                         conversation_dir: str = "conversations",
+                         auto_save_interval: int = 5,
+                         retry_on_error: bool = True,
+                         max_retries: int = 3,
+                         retry_delay: float = 1.0) -> Dict[str, Any]:
+        """
+        Translate a project from source to target language.
+        
+        Args:
+            source_path: Path to source project
+            output_path: Path to output project
+            max_iterations: Maximum number of translation iterations
+            save_conversation: Whether to save conversation to file
+            conversation_file: Name of conversation file
+            conversation_dir: Directory to save conversations
+            auto_save_interval: Save conversation every N iterations
+            retry_on_error: Whether to retry on errors
+            max_retries: Maximum number of retries
+            retry_delay: Delay between retries in seconds
+            
+        Returns:
+            Dictionary with translation results
+        """
+        self.translation_stats["start_time"] = time.time()
+        
+        try:
+            console.print(f"[blue]🚀 Starting project translation: {self.source_lang} -> {self.target_lang}[/blue]")
+            console.print(f"[blue]📁 Source: {source_path}[/blue]")
+            console.print(f"[blue]📁 Output: {output_path}[/blue]")
+            
+            # Initialize tools
+            file_ops = FileOperationsTool(source_path, output_path)
+            project_analysis = ProjectAnalysisTool(source_path)
+            
+            # Validate LLM provider
+            if not self.llm_provider.validate_configuration():
+                raise ValueError("LLM provider configuration is invalid")
+            
+            # Initialize conversation
+            self._initialize_conversation()
+            
+            # Setup conversation saving
+            conversation_path = None
+            if save_conversation:
+                conversation_path = self._setup_conversation_saving(
+                    conversation_dir, conversation_file, source_path, output_path
+                )
+            
+            # Start translation process
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                TimeElapsedColumn(),
+                console=console
+            ) as progress:
+                task = progress.add_task("Translating project...", total=None)
+                
+                result = self._run_translation_loop(
+                    file_ops, project_analysis, max_iterations, progress, task,
+                    save_conversation, conversation_path, auto_save_interval
+                )
+            
+            self.translation_stats["end_time"] = time.time()
+            result["stats"] = self.translation_stats
+            
+            # Save final conversation if enabled
+            if save_conversation and conversation_path:
+                self.save_conversation(conversation_path)
+                console.print(f"[green]💾 Conversation saved to: {conversation_path}[/green]")
+            
+            console.print(f"[green]✅ Translation completed successfully![/green]")
+            console.print(f"[green]📊 Files processed: {self.translation_stats['files_read']} read, {self.translation_stats['files_written']} written[/green]")
+            
+            return result
+            
+        except Exception as e:
+            error_msg = f"Translation failed: {str(e)}"
+            logger.error(error_msg)
+            console.print(f"[red]❌ {error_msg}[/red]")
+            
+            self.translation_stats["end_time"] = time.time()
+            return {
+                "success": False,
+                "error": error_msg,
+                "stats": self.translation_stats
+            }
+    
+    def _initialize_conversation(self) -> None:
+        """Initialize the conversation with the LLM."""
+        # Create system message
+        system_message = self.mcp_protocol.create_system_message(
+            self.source_lang, self.target_lang
+        )
+        
+        # Add to conversation history
+        self.mcp_protocol.add_message(system_message)
+        self.conversation_history = self.mcp_protocol.get_conversation_history()
+        
+        logger.info("Conversation initialized with LLM")
+    
+    def _run_translation_loop(self, file_ops: FileOperationsTool, 
+                            project_analysis: ProjectAnalysisTool,
+                            max_iterations: int, progress, task,
+                            save_conversation: bool = True, 
+                            conversation_path: Optional[str] = None,
+                            auto_save_interval: int = 5) -> Dict[str, Any]:
+        """Run the main translation loop."""
+        iteration = 0
+        
+        while iteration < max_iterations:
+            iteration += 1
+            progress.update(task, description=f"Translation iteration {iteration}/{max_iterations}")
+            
+            try:
+                # Send conversation to LLM
+                response = self.llm_provider.send_message(
+                    self.conversation_history,
+                    tools=self.mcp_protocol.get_available_tools()
+                )
+                
+                # Add LLM response to conversation
+                self._add_llm_response(response)
+                
+                # Check if translation is complete
+                if self._is_translation_complete(response.content):
+                    return {
+                        "success": True,
+                        "message": "Translation completed successfully",
+                        "iterations": iteration,
+                        "conversation_length": len(self.conversation_history)
+                    }
+                
+                # Process tool calls if any
+                if response.tool_calls:
+                    tool_results = self._process_tool_calls(
+                        response.tool_calls, file_ops, project_analysis
+                    )
+                    
+                    # Add tool responses to conversation
+                    for tool_result in tool_results:
+                        tool_response_message = MCPMessage(
+                            role=MCPMessageType.TOOL_RESPONSE,
+                            content=json.dumps(tool_result["result"]),
+                            tool_call_id=tool_result["tool_call_id"]
+                        )
+                        self.mcp_protocol.add_message(tool_response_message)
+                    
+                    # Update conversation history
+                    self.conversation_history = self.mcp_protocol.get_conversation_history()
+                
+                # Auto-save conversation if enabled
+                if save_conversation and conversation_path and iteration % auto_save_interval == 0:
+                    self.save_conversation(conversation_path)
+                    logger.info(f"Auto-saved conversation at iteration {iteration}")
+                
+                # Small delay to prevent rate limiting
+                time.sleep(0.5)
+                
+            except Exception as e:
+                error_msg = f"Error in iteration {iteration}: {str(e)}"
+                logger.error(error_msg)
+                self.translation_stats["errors"] += 1
+                
+                # Add error to conversation
+                error_message = MCPMessage(
+                    role=MCPMessageType.USER,
+                    content=f"Error occurred: {error_msg}. Please continue with the translation."
+                )
+                self.mcp_protocol.add_message(error_message)
+                self.conversation_history = self.mcp_protocol.get_conversation_history()
+        
+        return {
+            "success": False,
+            "error": f"Translation did not complete within {max_iterations} iterations",
+            "iterations": iteration,
+            "conversation_length": len(self.conversation_history)
+        }
+    
+    def _add_llm_response(self, response: LLMResponse) -> None:
+        """Add LLM response to conversation history."""
+        message = MCPMessage(
+            role=MCPMessageType.ASSISTANT,
+            content=response.content
+        )
+        
+        if response.tool_calls:
+            message.tool_calls = response.tool_calls
+        
+        self.mcp_protocol.add_message(message)
+        self.conversation_history = self.mcp_protocol.get_conversation_history()
+        
+        logger.info(f"Added LLM response: {len(response.content)} chars, {len(response.tool_calls or [])} tool calls")
+    
+    def _process_tool_calls(self, tool_calls: List[Dict[str, Any]], 
+                          file_ops: FileOperationsTool,
+                          project_analysis: ProjectAnalysisTool) -> List[Dict[str, Any]]:
+        """Process tool calls from LLM."""
+        results = []
+        
+        for tool_call in tool_calls:
+            try:
+                self.translation_stats["tool_calls"] += 1
+                
+                function_name = tool_call["function"]["name"]
+                arguments = json.loads(tool_call["function"]["arguments"])
+                
+                logger.info(f"Processing tool call: {function_name} with args: {arguments}")
+                
+                # Route tool calls to appropriate handlers
+                if function_name == "get_file":
+                    result = file_ops.get_file(arguments["file_path"])
+                    self.translation_stats["files_read"] += 1
+                    
+                elif function_name == "write_file":
+                    result = file_ops.write_file(
+                        arguments["file_path"], 
+                        arguments["content"]
+                    )
+                    self.translation_stats["files_written"] += 1
+                    
+                elif function_name == "list_directory":
+                    result = file_ops.list_directory(arguments["directory_path"])
+                    
+                elif function_name == "ask_question":
+                    result = self._handle_question(arguments["question"])
+                    
+                else:
+                    result = {
+                        "success": False,
+                        "error": f"Unknown tool: {function_name}"
+                    }
+                
+                # Format result for LLM
+                tool_result = {
+                    "tool_call_id": tool_call["id"],
+                    "result": result
+                }
+                results.append(tool_result)
+                
+            except Exception as e:
+                error_msg = f"Error processing tool call {tool_call.get('id', 'unknown')}: {str(e)}"
+                logger.error(error_msg)
+                self.translation_stats["errors"] += 1
+                
+                tool_result = {
+                    "tool_call_id": tool_call.get("id", "unknown"),
+                    "result": {
+                        "success": False,
+                        "error": error_msg
+                    }
+                }
+                results.append(tool_result)
+        
+        return results
+    
+    def _handle_question(self, question: str) -> Dict[str, Any]:
+        """Handle questions from the LLM."""
+        console.print(f"[yellow]🤔 LLM Question: {question}[/yellow]")
+        
+        # For now, provide a generic response
+        # In a real implementation, you might want to handle specific questions
+        return {
+            "success": True,
+            "answer": "Please continue with the translation. If you need specific information, use the available tools to explore the project structure.",
+            "question": question
+        }
+    
+    def _is_translation_complete(self, content: str) -> bool:
+        """Check if translation is complete based on LLM response."""
+        completion_indicators = [
+            "translation complete",
+            "translation finished",
+            "project translated",
+            "all files translated",
+            "translation successful"
+        ]
+        
+        content_lower = content.lower()
+        return any(indicator in content_lower for indicator in completion_indicators)
+    
+    def get_translation_summary(self) -> Dict[str, Any]:
+        """Get summary of translation process."""
+        duration = None
+        if self.translation_stats["start_time"] and self.translation_stats["end_time"]:
+            duration = self.translation_stats["end_time"] - self.translation_stats["start_time"]
+        
+        return {
+            "source_language": self.source_lang,
+            "target_language": self.target_lang,
+            "duration_seconds": duration,
+            "files_processed": self.translation_stats["files_read"],
+            "files_created": self.translation_stats["files_written"],
+            "tool_calls": self.translation_stats["tool_calls"],
+            "errors": self.translation_stats["errors"],
+            "conversation_length": len(self.conversation_history)
+        }
+    
+    def _setup_conversation_saving(self, conversation_dir: str, conversation_file: str, 
+                                  source_path: str, output_path: str) -> str:
+        """
+        Setup conversation saving directory and file.
+        
+        Args:
+            conversation_dir: Directory to save conversations
+            conversation_file: Name of conversation file
+            source_path: Source project path
+            output_path: Output project path
+            
+        Returns:
+            Path to conversation file
+        """
+        from datetime import datetime
+        
+        # Create conversation directory
+        conv_dir = Path(conversation_dir)
+        conv_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate conversation filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        source_name = Path(source_path).name
+        target_name = Path(output_path).name
+        
+        if conversation_file == "translation_conversation.json":
+            # Use default naming with timestamp
+            filename = f"translation_{source_name}_to_{target_name}_{timestamp}.json"
+        else:
+            # Use provided filename
+            filename = conversation_file
+            
+        conversation_path = conv_dir / filename
+        
+        # Save initial conversation metadata
+        initial_data = {
+            "metadata": {
+                "source_language": self.source_lang,
+                "target_language": self.target_lang,
+                "source_path": str(source_path),
+                "output_path": str(output_path),
+                "start_time": datetime.now().isoformat(),
+                "llm_provider": self.llm_provider.get_provider_info(),
+                "translation_stats": self.translation_stats
+            },
+            "conversation": []
+        }
+        
+        with open(conversation_path, 'w', encoding='utf-8') as f:
+            json.dump(initial_data, f, indent=2, ensure_ascii=False)
+        
+        logger.info(f"Conversation saving setup: {conversation_path}")
+        return str(conversation_path)
+    
+    def save_conversation(self, file_path: str) -> bool:
+        """Save conversation history to file."""
+        try:
+            conversation_data = {
+                "translation_summary": self.get_translation_summary(),
+                "conversation_history": self.conversation_history,
+                "mcp_protocol": {
+                    "available_tools": self.mcp_protocol.get_available_tools()
+                }
+            }
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(conversation_data, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"Conversation saved to: {file_path}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error saving conversation: {e}")
+            return False

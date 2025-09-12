@@ -1,0 +1,733 @@
+{
+  "test_suite": "CRUD API Test Scenarios",
+  "description": "Comprehensive test scenarios for the CRUD REST API service",
+  "base_url": "http://localhost:8000",
+  "scenarios": [
+    {
+      "name": "service_health_verification",
+      "description": "Verify service is running and healthy",
+      "steps": [
+        {
+          "name": "check_root_endpoint",
+          "method": "GET",
+          "endpoint": "/",
+          "expected_status": 200,
+          "expected_response_contains": ["message", "version", "endpoints"]
+        },
+        {
+          "name": "check_health_endpoint",
+          "method": "GET",
+          "endpoint": "/health",
+          "expected_status": 200,
+          "expected_response": {
+            "status": "healthy",
+            "service": "crud-api"
+          }
+        }
+      ]
+    },
+    {
+      "name": "initial_data_setup",
+      "description": "Set up initial test data for other scenarios",
+      "steps": [
+        {
+          "name": "verify_empty_database",
+          "method": "GET",
+          "endpoint": "/items",
+          "expected_status": 200,
+          "expected_response_type": "array",
+          "expected_items": 0
+        },
+        {
+          "name": "create_laptop_item",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Laptop",
+            "description": "High-performance laptop",
+            "price": 999.99,
+            "category": "Electronics"
+          },
+          "expected_status": 200,
+          "expected_response": {
+            "name": "Laptop",
+            "description": "High-performance laptop",
+            "price": 999.99,
+            "category": "Electronics"
+          },
+          "save_response_field": "laptop_id"
+        },
+        {
+          "name": "create_book_item",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Book",
+            "description": "Programming guide",
+            "price": 29.99,
+            "category": "Books"
+          },
+          "expected_status": 200,
+          "expected_response": {
+            "name": "Book",
+            "description": "Programming guide",
+            "price": 29.99,
+            "category": "Books"
+          },
+          "save_response_field": "book_id"
+        },
+        {
+          "name": "create_coffee_item",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Coffee",
+            "description": "Premium coffee beans",
+            "price": 15.99,
+            "category": "Food"
+          },
+          "expected_status": 200,
+          "expected_response": {
+            "name": "Coffee",
+            "description": "Premium coffee beans",
+            "price": 15.99,
+            "category": "Food"
+          },
+          "save_response_field": "coffee_id"
+        },
+        {
+          "name": "verify_initial_data_created",
+          "method": "GET",
+          "endpoint": "/items",
+          "expected_status": 200,
+          "expected_response_type": "array",
+          "expected_items": 3
+        }
+      ]
+    },
+    {
+      "name": "initial_data_verification",
+      "description": "Verify initial test data is accessible",
+      "steps": [
+        {
+          "name": "get_all_items",
+          "method": "GET",
+          "endpoint": "/items",
+          "expected_status": 200,
+          "expected_response_type": "array",
+          "expected_min_items": 3
+        },
+        {
+          "name": "verify_laptop_item",
+          "method": "GET",
+          "endpoint": "/items/{saved_laptop_id}",
+          "expected_status": 200,
+          "expected_response": {
+            "name": "Laptop",
+            "description": "High-performance laptop",
+            "price": 999.99,
+            "category": "Electronics"
+          }
+        },
+        {
+          "name": "verify_book_item",
+          "method": "GET",
+          "endpoint": "/items/{saved_book_id}",
+          "expected_status": 200,
+          "expected_response": {
+            "name": "Book",
+            "description": "Programming guide",
+            "price": 29.99,
+            "category": "Books"
+          }
+        },
+        {
+          "name": "verify_coffee_item",
+          "method": "GET",
+          "endpoint": "/items/{saved_coffee_id}",
+          "expected_status": 200,
+          "expected_response": {
+            "name": "Coffee",
+            "description": "Premium coffee beans",
+            "price": 15.99,
+            "category": "Food"
+          }
+        }
+      ]
+    },
+    {
+      "name": "complete_crud_workflow",
+      "description": "Test complete CRUD workflow with a single item",
+      "steps": [
+        {
+          "name": "create_new_item",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Test Smartphone",
+            "description": "Latest model smartphone",
+            "price": 699.99,
+            "category": "Electronics"
+          },
+          "expected_status": 200,
+          "expected_response_contains": ["id", "name", "price"],
+          "expected_response": {
+            "name": "Test Smartphone",
+            "description": "Latest model smartphone",
+            "price": 699.99,
+            "category": "Electronics"
+          },
+          "save_response_field": "id"
+        },
+        {
+          "name": "read_created_item",
+          "method": "GET",
+          "endpoint": "/items/{saved_id}",
+          "expected_status": 200,
+          "expected_response": {
+            "name": "Test Smartphone",
+            "description": "Latest model smartphone",
+            "price": 699.99,
+            "category": "Electronics"
+          }
+        },
+        {
+          "name": "update_item_partial",
+          "method": "PUT",
+          "endpoint": "/items/{saved_id}",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "price": 649.99,
+            "description": "Updated smartphone with discount"
+          },
+          "expected_status": 200,
+          "expected_response": {
+            "name": "Test Smartphone",
+            "description": "Updated smartphone with discount",
+            "price": 649.99,
+            "category": "Electronics"
+          }
+        },
+        {
+          "name": "update_item_complete",
+          "method": "PUT",
+          "endpoint": "/items/{saved_id}",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Premium Smartphone",
+            "description": "Top-tier smartphone model",
+            "price": 799.99,
+            "category": "Premium Electronics"
+          },
+          "expected_status": 200,
+          "expected_response": {
+            "name": "Premium Smartphone",
+            "description": "Top-tier smartphone model",
+            "price": 799.99,
+            "category": "Premium Electronics"
+          }
+        },
+        {
+          "name": "verify_final_update",
+          "method": "GET",
+          "endpoint": "/items/{saved_id}",
+          "expected_status": 200,
+          "expected_response": {
+            "name": "Premium Smartphone",
+            "description": "Top-tier smartphone model",
+            "price": 799.99,
+            "category": "Premium Electronics"
+          }
+        },
+        {
+          "name": "delete_item",
+          "method": "DELETE",
+          "endpoint": "/items/{saved_id}",
+          "expected_status": 200,
+          "expected_response_contains": ["message", "deleted_item"]
+        },
+        {
+          "name": "verify_deletion",
+          "method": "GET",
+          "endpoint": "/items/{saved_id}",
+          "expected_status": 404,
+          "expected_response_contains": ["detail"]
+        }
+      ]
+    },
+    {
+      "name": "error_handling_scenarios",
+      "description": "Test various error conditions and edge cases",
+      "steps": [
+        {
+          "name": "get_nonexistent_item",
+          "method": "GET",
+          "endpoint": "/items/999",
+          "expected_status": 404,
+          "expected_response_contains": ["detail"]
+        },
+        {
+          "name": "create_item_missing_name",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "description": "Item without name",
+            "price": 29.99,
+            "category": "Test"
+          },
+          "expected_status": 422
+        },
+        {
+          "name": "create_item_missing_price",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Item without price",
+            "description": "Test item",
+            "category": "Test"
+          },
+          "expected_status": 422
+        },
+        {
+          "name": "create_item_missing_category",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Item without category",
+            "description": "Test item",
+            "price": 19.99
+          },
+          "expected_status": 422
+        },
+        {
+          "name": "update_nonexistent_item",
+          "method": "PUT",
+          "endpoint": "/items/999",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Non-existent Item"
+          },
+          "expected_status": 404
+        },
+        {
+          "name": "delete_nonexistent_item",
+          "method": "DELETE",
+          "endpoint": "/items/999",
+          "expected_status": 404
+        }
+      ]
+    },
+    {
+      "name": "category_filtering_scenarios",
+      "description": "Test category-based filtering functionality",
+      "steps": [
+        {
+          "name": "get_electronics_items",
+          "method": "GET",
+          "endpoint": "/items/category/Electronics",
+          "expected_status": 200,
+          "expected_response_type": "array",
+          "expected_min_items": 1
+        },
+        {
+          "name": "get_books_items",
+          "method": "GET",
+          "endpoint": "/items/category/Books",
+          "expected_status": 200,
+          "expected_response_type": "array",
+          "expected_min_items": 1
+        },
+        {
+          "name": "get_food_items",
+          "method": "GET",
+          "endpoint": "/items/category/Food",
+          "expected_status": 200,
+          "expected_response_type": "array",
+          "expected_min_items": 1
+        },
+        {
+          "name": "get_nonexistent_category",
+          "method": "GET",
+          "endpoint": "/items/category/Nonexistent",
+          "expected_status": 200,
+          "expected_response_type": "array",
+          "expected_items": 0
+        },
+        {
+          "name": "test_case_insensitive_filtering",
+          "method": "GET",
+          "endpoint": "/items/category/electronics",
+          "expected_status": 200,
+          "expected_response_type": "array",
+          "expected_min_items": 1
+        },
+        {
+          "name": "test_mixed_case_filtering",
+          "method": "GET",
+          "endpoint": "/items/category/ELECTRONICS",
+          "expected_status": 200,
+          "expected_response_type": "array",
+          "expected_min_items": 1
+        }
+      ]
+    },
+    {
+      "name": "data_validation_scenarios",
+      "description": "Test data validation and type checking",
+      "steps": [
+        {
+          "name": "create_item_with_zero_price",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Free Item",
+            "description": "Item with zero price",
+            "price": 0.0,
+            "category": "Free"
+          },
+          "expected_status": 200,
+          "expected_response": {
+            "name": "Free Item",
+            "description": "Item with zero price",
+            "price": 0.0,
+            "category": "Free"
+          },
+          "save_response_field": "id"
+        },
+        {
+          "name": "create_item_with_negative_price",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Negative Price Item",
+            "description": "Item with negative price",
+            "price": -10.0,
+            "category": "Test"
+          },
+          "expected_status": 200,
+          "expected_response": {
+            "name": "Negative Price Item",
+            "description": "Item with negative price",
+            "price": -10.0,
+            "category": "Test"
+          },
+          "save_response_field": "id2"
+        },
+        {
+          "name": "create_item_with_long_name",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "This is a very long item name that might test the system's handling of longer strings and see how it behaves with extended text content",
+            "description": "Item with very long name",
+            "price": 1.0,
+            "category": "Long Name Test"
+          },
+          "expected_status": 200,
+          "expected_response_contains": ["id", "name", "price"],
+          "save_response_field": "id3"
+        },
+        {
+          "name": "cleanup_test_items",
+          "method": "DELETE",
+          "endpoint": "/items/{saved_id}",
+          "expected_status": 200
+        },
+        {
+          "name": "cleanup_test_items_2",
+          "method": "DELETE",
+          "endpoint": "/items/{saved_id2}",
+          "expected_status": 200
+        },
+        {
+          "name": "cleanup_test_items_3",
+          "method": "DELETE",
+          "endpoint": "/items/{saved_id3}",
+          "expected_status": 200
+        }
+      ]
+    },
+    {
+      "name": "bulk_operations_scenario",
+      "description": "Test creating and managing multiple items",
+      "steps": [
+        {
+          "name": "create_multiple_items",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Bulk Item 1",
+            "description": "First bulk test item",
+            "price": 10.99,
+            "category": "Bulk"
+          },
+          "expected_status": 200,
+          "save_response_field": "bulk_id_1"
+        },
+        {
+          "name": "create_multiple_items_2",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Bulk Item 2",
+            "description": "Second bulk test item",
+            "price": 20.99,
+            "category": "Bulk"
+          },
+          "expected_status": 200,
+          "save_response_field": "bulk_id_2"
+        },
+        {
+          "name": "create_multiple_items_3",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Bulk Item 3",
+            "description": "Third bulk test item",
+            "price": 30.99,
+            "category": "Bulk"
+          },
+          "expected_status": 200,
+          "save_response_field": "bulk_id_3"
+        },
+        {
+          "name": "verify_bulk_category",
+          "method": "GET",
+          "endpoint": "/items/category/Bulk",
+          "expected_status": 200,
+          "expected_response_type": "array",
+          "expected_items": 3
+        },
+        {
+          "name": "verify_all_items_count",
+          "method": "GET",
+          "endpoint": "/items",
+          "expected_status": 200,
+          "expected_response_type": "array",
+          "expected_min_items": 6
+        },
+        {
+          "name": "cleanup_bulk_item_1",
+          "method": "DELETE",
+          "endpoint": "/items/{saved_bulk_id_1}",
+          "expected_status": 200
+        },
+        {
+          "name": "cleanup_bulk_item_2",
+          "method": "DELETE",
+          "endpoint": "/items/{saved_bulk_id_2}",
+          "expected_status": 200
+        },
+        {
+          "name": "cleanup_bulk_item_3",
+          "method": "DELETE",
+          "endpoint": "/items/{saved_bulk_id_3}",
+          "expected_status": 200
+        },
+        {
+          "name": "verify_cleanup",
+          "method": "GET",
+          "endpoint": "/items/category/Bulk",
+          "expected_status": 200,
+          "expected_response_type": "array",
+          "expected_items": 0
+        }
+      ]
+    },
+    {
+      "name": "concurrent_operations_scenario",
+      "description": "Test concurrent read and write operations",
+      "steps": [
+        {
+          "name": "create_concurrent_item",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Concurrent Test Item",
+            "description": "Item for concurrent testing",
+            "price": 50.0,
+            "category": "Concurrent"
+          },
+          "expected_status": 200,
+          "save_response_field": "concurrent_id"
+        },
+        {
+          "name": "read_while_updating",
+          "method": "GET",
+          "endpoint": "/items/{saved_concurrent_id}",
+          "expected_status": 200,
+          "expected_response_contains": ["id", "name", "price"]
+        },
+        {
+          "name": "update_item_concurrently",
+          "method": "PUT",
+          "endpoint": "/items/{saved_concurrent_id}",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "price": 55.0
+          },
+          "expected_status": 200
+        },
+        {
+          "name": "verify_concurrent_update",
+          "method": "GET",
+          "endpoint": "/items/{saved_concurrent_id}",
+          "expected_status": 200,
+          "expected_response": {
+            "price": 55.0
+          }
+        },
+        {
+          "name": "cleanup_concurrent_item",
+          "method": "DELETE",
+          "endpoint": "/items/{saved_concurrent_id}",
+          "expected_status": 200
+        }
+      ]
+    },
+    {
+      "name": "edge_case_scenarios",
+      "description": "Test edge cases and boundary conditions",
+      "steps": [
+        {
+          "name": "create_item_with_special_characters",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Item with Special Chars: !@#$%^&*()",
+            "description": "Testing special characters in name",
+            "price": 99.99,
+            "category": "Special"
+          },
+          "expected_status": 200,
+          "save_response_field": "special_id"
+        },
+        {
+          "name": "create_item_with_unicode",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Item with Unicode: 测试项目 🚀",
+            "description": "Testing unicode characters",
+            "price": 88.88,
+            "category": "Unicode"
+          },
+          "expected_status": 200,
+          "save_response_field": "unicode_id"
+        },
+        {
+          "name": "create_item_with_very_high_price",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Expensive Item",
+            "description": "Very expensive item",
+            "price": 999999.99,
+            "category": "Luxury"
+          },
+          "expected_status": 200,
+          "save_response_field": "expensive_id"
+        },
+        {
+          "name": "create_item_with_decimal_precision",
+          "method": "POST",
+          "endpoint": "/items",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "name": "Precision Item",
+            "description": "Item with precise decimal",
+            "price": 3.14159,
+            "category": "Math"
+          },
+          "expected_status": 200,
+          "save_response_field": "precision_id"
+        },
+        {
+          "name": "cleanup_special_item",
+          "method": "DELETE",
+          "endpoint": "/items/{saved_special_id}",
+          "expected_status": 200
+        },
+        {
+          "name": "cleanup_unicode_item",
+          "method": "DELETE",
+          "endpoint": "/items/{saved_unicode_id}",
+          "expected_status": 200
+        },
+        {
+          "name": "cleanup_expensive_item",
+          "method": "DELETE",
+          "endpoint": "/items/{saved_expensive_id}",
+          "expected_status": 200
+        },
+        {
+          "name": "cleanup_precision_item",
+          "method": "DELETE",
+          "endpoint": "/items/{saved_precision_id}",
+          "expected_status": 200
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+# Project Translator Dependencies
+
+# CLI Framework
+click>=8.1.0
+
+# HTTP Client
+requests>=2.28.0
+
+# Rich Console Output
+rich>=13.0.0
+colorama>=0.4.6
+
+# Configuration and Data
+pyyaml>=6.0
+pydantic>=2.0.0
+
+# LLM Providers
+openai>=1.0.0
+
+# Development Dependencies (optional)
+# pytest>=7.0.0
+# black>=22.0.0
+# flake8>=4.0.0
