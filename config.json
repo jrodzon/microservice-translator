@@ -6,7 +6,7 @@
   "check_interval": 2,
   "output_file": "test_results.json",
   "logging": {
-    "level": "INFO",
+    "level": "DEBUG",
     "file": "logs/project_translator.log",
     "max_file_size": 10485760,
     "backup_count": 5

@@ -178,7 +178,7 @@ class ProjectTranslator:
                 self._add_llm_response(response)
                 
                 # Check if translation is complete
-                if self._is_translation_complete(response.content):
+                if response.is_complete:
                     return {
                         "success": True,
                         "message": "Translation completed successfully",
@@ -186,23 +186,14 @@ class ProjectTranslator:
                         "conversation_length": len(self.conversation_history)
                     }
                 
-                # Process tool calls if any
-                if response.tool_calls:
-                    tool_results = self._process_tool_calls(
-                        response.tool_calls, file_ops, project_analysis
-                    )
-                    
-                    # Add tool responses to conversation
-                    for tool_result in tool_results:
-                        tool_response_message = MCPMessage(
-                            role=MCPMessageType.TOOL_RESPONSE,
-                            content=json.dumps(tool_result["result"]),
-                            tool_call_id=tool_result["tool_call_id"]
-                        )
-                        self.mcp_protocol.add_message(tool_response_message)
-                    
-                    # Update conversation history
-                    self.conversation_history = self.mcp_protocol.get_conversation_history()
+                tool_calls = self._process_tool_calls(
+                    response.messages, file_ops, project_analysis
+                )
+
+                self.mcp_protocol.add_message(tool_calls)
+                
+                # Update conversation history
+                self.conversation_history = self.mcp_protocol.get_conversation_history()
                 
                 # Auto-save conversation if enabled
                 if save_conversation and conversation_path and iteration % auto_save_interval == 0:
@@ -234,78 +225,73 @@ class ProjectTranslator:
     
     def _add_llm_response(self, response: LLMResponse) -> None:
         """Add LLM response to conversation history."""
-        message = MCPMessage(
-            role=MCPMessageType.ASSISTANT,
-            content=response.content
-        )
-        
-        if response.tool_calls:
-            message.tool_calls = response.tool_calls
-        
-        self.mcp_protocol.add_message(message)
+        for item in response.messages:
+            self.mcp_protocol.add_message(item)
         self.conversation_history = self.mcp_protocol.get_conversation_history()
         
-        logger.info(f"Added LLM response: {len(response.content)} chars, {len(response.tool_calls or [])} tool calls")
+        logger.info(f"Added LLM response: {len(response.messages)} messages")
     
-    def _process_tool_calls(self, tool_calls: List[Dict[str, Any]], 
+    def _process_tool_calls(self, tool_calls: List[MCPMessage], 
                           file_ops: FileOperationsTool,
-                          project_analysis: ProjectAnalysisTool) -> List[Dict[str, Any]]:
+                          project_analysis: ProjectAnalysisTool) -> List[MCPMessage]:
         """Process tool calls from LLM."""
         results = []
         
-        for tool_call in tool_calls:
+        for tool_call in filter(lambda x: x.role == MCPMessageType.FUNCTION_CALL, tool_calls):
             try:
                 self.translation_stats["tool_calls"] += 1
                 
-                function_name = tool_call["function"]["name"]
-                arguments = json.loads(tool_call["function"]["arguments"])
+                tool_name = tool_call.content.name
+                arguments = json.loads(tool_call.content.arguments)
                 
-                logger.info(f"Processing tool call: {function_name} with args: {arguments}")
+                logger.info(f"Processing tool call: {tool_name} with args: {arguments}")
                 
                 # Route tool calls to appropriate handlers
-                if function_name == "get_file":
+                if tool_name == "get_file":
                     result = file_ops.get_file(arguments["file_path"])
                     self.translation_stats["files_read"] += 1
                     
-                elif function_name == "write_file":
+                elif tool_name == "write_file":
                     result = file_ops.write_file(
                         arguments["file_path"], 
                         arguments["content"]
                     )
                     self.translation_stats["files_written"] += 1
                     
-                elif function_name == "list_directory":
+                elif tool_name == "list_directory":
                     result = file_ops.list_directory(arguments["directory_path"])
                     
-                elif function_name == "ask_question":
+                elif tool_name == "ask_question":
                     result = self._handle_question(arguments["question"])
                     
                 else:
                     result = {
                         "success": False,
-                        "error": f"Unknown tool: {function_name}"
+                        "error": f"Unknown tool: {tool_name}"
                     }
                 
                 # Format result for LLM
-                tool_result = {
-                    "tool_call_id": tool_call["id"],
-                    "result": result
-                }
-                results.append(tool_result)
+                tool_call_result = MCPMessage(
+                    role=MCPMessageType.FUNCTION_RESPONSE,
+                    content=result,
+                    id=tool_call.id
+                )
+                results.append(tool_call_result)
                 
             except Exception as e:
-                error_msg = f"Error processing tool call {tool_call.get('id', 'unknown')}: {str(e)}"
+                error_msg = f"Error processing tool call {tool_call.id}: {str(e)}"
                 logger.error(error_msg)
                 self.translation_stats["errors"] += 1
                 
-                tool_result = {
-                    "tool_call_id": tool_call.get("id", "unknown"),
-                    "result": {
+                tool_call_result = MCPMessage(
+                    role=MCPMessageType.FUNCTION_RESPONSE,
+                    content={
                         "success": False,
                         "error": error_msg
-                    }
-                }
-                results.append(tool_result)
+                    },
+                    id=tool_call.id
+                )
+                results.append(tool_call_result)
         
         return results
     
@@ -320,19 +306,6 @@ class ProjectTranslator:
             "answer": "Please continue with the translation. If you need specific information, use the available tools to explore the project structure.",
             "question": question
         }
-    
-    def _is_translation_complete(self, content: str) -> bool:
-        """Check if translation is complete based on LLM response."""
-        completion_indicators = [
-            "translation complete",
-            "translation finished",
-            "project translated",
-            "all files translated",
-            "translation successful"
-        ]
-        
-        content_lower = content.lower()
-        return any(indicator in content_lower for indicator in completion_indicators)
     
     def get_translation_summary(self) -> Dict[str, Any]:
         """Get summary of translation process."""

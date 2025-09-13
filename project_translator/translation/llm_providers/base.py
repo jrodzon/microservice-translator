@@ -9,19 +9,27 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
+from project_translator.translation.protocols.mcp import MCPMessage
 from project_translator.utils import get_logger
 
 logger = get_logger("llm_provider")
 
 
 @dataclass
+class UsageData:
+    """Represents usage data."""
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+
+@dataclass
 class LLMResponse:
-    """Response from LLM provider."""
-    content: str
-    tool_calls: Optional[List[Dict[str, Any]]] = None
-    usage: Optional[Dict[str, int]] = None
-    model: Optional[str] = None
-    finish_reason: Optional[str] = None
+    """Represents an LLM response."""
+    messages: List[MCPMessage]
+    usage: UsageData
+    is_complete: bool
+
 
 
 class BaseLLMProvider(ABC):
@@ -42,7 +50,7 @@ class BaseLLMProvider(ABC):
         logger.info(f"Initialized {self.__class__.__name__} with model: {model}")
     
     @abstractmethod
-    def send_message(self, messages: List[Dict[str, Any]], 
+    def send_message(self, messages: List[MCPMessage], 
                     tools: Optional[List[Dict[str, Any]]] = None) -> LLMResponse:
         """
         Send messages to the LLM and get response.
@@ -52,22 +60,7 @@ class BaseLLMProvider(ABC):
             tools: List of available tools for the LLM
             
         Returns:
-            LLMResponse with the model's response
-        """
-        pass
-    
-    @abstractmethod
-    def send_tool_response(self, messages: List[Dict[str, Any]], 
-                          tool_response: Dict[str, Any]) -> LLMResponse:
-        """
-        Send tool response back to the LLM.
-        
-        Args:
-            messages: Current conversation messages
-            tool_response: Response from tool execution
-            
-        Returns:
-            LLMResponse with the model's next response
+            LLMResponse object with the model's response
         """
         pass
     
@@ -78,6 +71,19 @@ class BaseLLMProvider(ABC):
         
         Returns:
             List of model names
+        """
+        pass
+    
+    @abstractmethod
+    def get_model_description(self, model_name: str) -> str:
+        """
+        Get description for a specific model.
+        
+        Args:
+            model_name: Name of the model
+            
+        Returns:
+            Description of the model
         """
         pass
     

@@ -2,14 +2,20 @@
 OpenAI provider implementation for project translation.
 
 This module implements the OpenAI API provider for LLM communication
-during project translation.
+during project translation using the Responses API.
 """
 
-import json
 from typing import List, Dict, Any, Optional
+from openai.types.responses.response_input_item import Message, ResponseInputItem
+from openai.types.responses.response_input_item import FunctionCallOutput
+from openai.types.responses.response_output_item import ResponseOutputItem
+from openai.types.responses.response_output_message import ResponseOutputMessage
+from openai.types.responses.response_function_tool_call import ResponseFunctionToolCall
 from rich.console import Console
 
-from .base import BaseLLMProvider, LLMResponse
+from project_translator.translation.protocols.mcp import MCPMessage, MCPMessageType
+from project_translator.translation.protocols.mcp import FunctionCallContent
+from project_translator.translation.llm_providers.base import BaseLLMProvider, LLMResponse
 from project_translator.utils import get_logger
 
 console = Console()
@@ -47,27 +53,57 @@ class OpenAIProvider(BaseLLMProvider):
         else:
             self.client = None
     
-    def send_message(self, messages: List[Dict[str, Any]], 
-                    tools: Optional[List[Dict[str, Any]]] = None) -> LLMResponse:
+    def _convert_messages_to_input(self, messages: List[MCPMessage]) -> List[ResponseInputItem]:
         """
-        Send messages to OpenAI API.
+        Convert messages list to input string for Responses API.
+        
+        Args:
+            messages: List of messages in the conversation
+            
+        Returns:
+            List of OpenAI input items
+        """
+        input_parts : List[ResponseInputItem] = []
+        for message in messages:
+            role = message.role
+            content = message.content
+            if role == MCPMessageType.SYSTEM:
+                input_parts.append(Message(role="system", content=content))
+            elif role == MCPMessageType.USER:
+                input_parts.append(Message(role="user", content=content))
+            elif role == MCPMessageType.ASSISTANT:
+                input_parts.append(ResponseOutputMessage(content=content, id=message.id))
+            elif role == MCPMessageType.FUNCTION_CALL:
+                input_parts.append(ResponseFunctionToolCall(name=content.name, arguments=content.arguments, call_id=message.id))
+            elif role == MCPMessageType.FUNCTION_RESPONSE:
+                input_parts.append(FunctionCallOutput(call_id=message.id, output=content))
+        
+        return input_parts
+    
+    def send_message(self, messages: List[MCPMessage], 
+                    tools: Optional[List[Dict[str, Any]]] = None) -> List[MCPMessage]:
+        """
+        Send messages to OpenAI API using the Responses API.
         
         Args:
             messages: List of messages in the conversation
             tools: List of available tools for the LLM
             
         Returns:
-            LLMResponse with the model's response
+            List of messages with the model's response
         """
         try:
             if not self.validate_configuration():
                 raise ValueError("Invalid OpenAI configuration")
             
-            # Prepare request parameters
+            # Convert messages to input format for Responses API
+            input_text = self._convert_messages_to_input(messages)
+            
+            # Prepare request parameters for Responses API
             request_params = {
                 "model": self.model,
-                "messages": messages,
-                "max_tokens": self.max_tokens,
+                "input": input_text,
+                "max_output_tokens": self.max_tokens,
                 "temperature": self.temperature,
                 "stream": False
             }
@@ -78,85 +114,47 @@ class OpenAIProvider(BaseLLMProvider):
                 request_params["tool_choice"] = "auto"
             
             logger.info(f"Sending request to OpenAI {self.model} with {len(messages)} messages")
+            logger.debug(f"Request parameters: {request_params}")
             
-            # Make API call
+            # Make API call using Responses API
             if not self.client:
                 raise ValueError("OpenAI client not initialized. API key may be missing.")
             
-            response = self.client.chat.completions.create(**request_params)
+            response = self.client.responses.create(**request_params)
+
+            logger.info(f"Received response from OpenAI: {len(response.content)} chars")
+            logger.debug(f"Response: {response.model_dump_json(indent=2)}")
             
-            # Extract response
-            choice = response.choices[0]
-            message = choice.message
+            # Extract response data from Responses API format
+            response_messages = []
             
-            # Parse tool calls if present
-            tool_calls = None
-            if message.tool_calls:
-                tool_calls = []
-                for tool_call in message.tool_calls:
-                    tool_calls.append({
-                        "id": tool_call.id,
-                        "type": tool_call.type,
-                        "function": {
-                            "name": tool_call.function.name,
-                            "arguments": tool_call.function.arguments
-                        }
-                    })
+            # Handle different response types from Responses API
+            if hasattr(response, 'output') and isinstance(response.output, list) and response.output:
+                for output_item in response.output:
+                    if isinstance(output_item, ResponseOutputMessage):
+                        response_messages.append(self._convert_openai_output_message_to_mcp_message(output_item))
+                    elif isinstance(output_item, ResponseFunctionToolCall):
+                        response_messages.append(self._convert_openai_output_function_call_to_mcp_message(output_item))
+                    else:
+                        response_messages.append(self._convert_openai_output_to_mcp_message(output_item))
             
             # Extract usage information
             usage = None
-            if response.usage:
+            if hasattr(response, 'usage') and response.usage:
                 usage = {
                     "prompt_tokens": response.usage.prompt_tokens,
                     "completion_tokens": response.usage.completion_tokens,
                     "total_tokens": response.usage.total_tokens
                 }
             
-            result = LLMResponse(
-                content=message.content or "",
-                tool_calls=tool_calls,
-                usage=usage,
-                model=self.model,
-                finish_reason=choice.finish_reason
-            )
-            
-            logger.info(f"Received response from OpenAI: {len(result.content)} chars, {len(tool_calls or [])} tool calls")
-            return result
+            return LLMResponse(messages=response_messages, usage=usage, is_complete=response.status == "completed")
             
         except Exception as e:
             error_msg = f"Error sending message to OpenAI: {str(e)}"
             logger.error(error_msg)
             console.print(f"[red]OpenAI API Error: {error_msg}[/red]")
             raise
-    
-    def send_tool_response(self, messages: List[Dict[str, Any]], 
-                          tool_response: Dict[str, Any]) -> LLMResponse:
-        """
-        Send tool response back to OpenAI.
-        
-        Args:
-            messages: Current conversation messages
-            tool_response: Response from tool execution
-            
-        Returns:
-            LLMResponse with the model's next response
-        """
-        try:
-            # Add tool response to messages
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tool_response.get("tool_call_id"),
-                "content": json.dumps(tool_response.get("result", {}))
-            })
-            
-            # Send updated conversation
-            return self.send_message(messages)
-            
-        except Exception as e:
-            error_msg = f"Error sending tool response to OpenAI: {str(e)}"
-            logger.error(error_msg)
-            raise
-    
+
     def get_available_models(self) -> List[str]:
         """
         Get list of available OpenAI models.
@@ -171,6 +169,33 @@ class OpenAIProvider(BaseLLMProvider):
             "gpt-3.5-turbo",
             "gpt-3.5-turbo-16k"
         ]
+    
+    def get_model_description(self, model_name: str) -> str:
+        """
+        Get description for a specific OpenAI model.
+        
+        Args:
+            model_name: Name of the model
+            
+        Returns:
+            Description of the model
+        """
+        model_info = self.get_model_info()
+        if model_name == self.model:
+            return model_info.get("description", f"OpenAI {model_name} model")
+        
+        # Get description for other models
+        model_descriptions = {
+            "gpt-4": "Most capable GPT-4 model",
+            "gpt-4-turbo": "Faster GPT-4 model with vision support",
+            "gpt-4-32k": "GPT-4 with 32k context window",
+            "gpt-4o": "Latest GPT-4 model with improved capabilities",
+            "gpt-4o-mini": "Efficient GPT-4 model",
+            "gpt-3.5-turbo": "Fast and efficient GPT-3.5 model",
+            "gpt-3.5-turbo-16k": "GPT-3.5 with 16k context window"
+        }
+        
+        return model_descriptions.get(model_name, f"OpenAI {model_name} model")
     
     def validate_configuration(self) -> bool:
         """
@@ -271,3 +296,21 @@ class OpenAIProvider(BaseLLMProvider):
             "total_cost": total_cost,
             "currency": "USD"
         }
+    
+    def _convert_openai_output_message_to_mcp_message(self, output_item: ResponseOutputMessage) -> MCPMessage:
+        """
+        Convert OpenAI output message to MCP message.
+        """
+        return MCPMessage(role=MCPMessageType.ASSISTANT, content=output_item.content, id=output_item.id)
+        
+    def _convert_openai_output_function_call_to_mcp_message(self, output_item: ResponseFunctionToolCall) -> MCPMessage:
+        """
+        Convert OpenAI output function call to MCP message.
+        """
+        return MCPMessage(role=MCPMessageType.FUNCTION_CALL, content=FunctionCallContent(name=output_item.name, arguments=output_item.arguments, call_id=output_item.call_id), id=output_item.id)
+    
+    def _convert_openai_output_to_mcp_message(self, output_item: ResponseOutputItem) -> MCPMessage:
+        """
+        Convert OpenAI output to MCP message.
+        """
+        return MCPMessage(role=MCPMessageType.ASSISTANT, content=output_item.output, id=output_item.id)

@@ -176,10 +176,8 @@ def list_models(provider: str):
             models_table.add_column("Model Name", style="cyan")
             models_table.add_column("Description", style="green")
             
-            model_info = provider_instance.get_model_info()
             for model in models:
-                info = model_info.get(model, {})
-                description = info.get("description", "No description available")
+                description = provider_instance.get_model_description(model)
                 models_table.add_row(model, description)
             
             console.print(models_table)

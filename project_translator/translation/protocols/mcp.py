@@ -5,10 +5,8 @@ This module implements the MCP protocol for structured communication
 with LLM providers during project translation.
 """
 
-import json
-import re
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any
 from enum import Enum
 
 
@@ -17,48 +15,34 @@ class MCPMessageType(str, Enum):
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
-    TOOL_CALL = "tool_call"
-    TOOL_RESPONSE = "tool_response"
+    FUNCTION_CALL = "function_call"
+    FUNCTION_RESPONSE = "function_response"
 
 
 @dataclass
 class MCPMessage:
     """Represents an MCP message."""
     role: MCPMessageType
-    content: str
-    tool_calls: Optional[List[Dict[str, Any]]] = None
-    tool_call_id: Optional[str] = None
+    content: Any
+    id: str
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert message to dictionary format."""
         result = {
             "role": self.role.value,
-            "content": self.content
+            "content": self.content,
+            "id": self.id
         }
         
-        if self.tool_calls:
-            result["tool_calls"] = self.tool_calls
-            
-        if self.tool_call_id:
-            result["tool_call_id"] = self.tool_call_id
-            
         return result
 
 
 @dataclass
-class MCPToolCall:
-    """Represents a tool call in MCP protocol."""
-    id: str
-    type: str
-    function: Dict[str, Any]
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert tool call to dictionary format."""
-        return {
-            "id": self.id,
-            "type": self.type,
-            "function": self.function
-        }
+class FunctionCallContent:
+    """Represents a function call content."""
+    name: str
+    arguments: Any
+    call_id: str
 
 
 class MCPProtocol:
@@ -70,75 +54,75 @@ class MCPProtocol:
         self.available_tools = [
             {
                 "type": "function",
-                "function": {
-                    "name": "get_file",
-                    "description": "Get the content of a file",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "file_path": {
-                                "type": "string",
-                                "description": "Path to the file to read"
-                            }
-                        },
-                        "required": ["file_path"]
-                    }
-                }
+                "name": "get_file",
+                "description": "Get the content of a file",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Path to the file to read"
+                        }
+                    },
+                    "required": ["file_path"],
+                    "additionalProperties": False
+                },
+                "strict": True
             },
             {
                 "type": "function",
-                "function": {
-                    "name": "write_file", 
-                    "description": "Write content to a file",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "file_path": {
-                                "type": "string",
-                                "description": "Path where to write the file"
-                            },
-                            "content": {
-                                "type": "string",
-                                "description": "Content to write to the file"
-                            }
+                "name": "write_file", 
+                "description": "Write content to a file",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Path where to write the file"
                         },
-                        "required": ["file_path", "content"]
-                    }
-                }
+                        "content": {
+                            "type": "string",
+                            "description": "Content to write to the file"
+                        }
+                    },
+                    "required": ["file_path", "content"],
+                    "additionalProperties": False
+                },
+                "strict": True
             },
             {
                 "type": "function",
-                "function": {
-                    "name": "list_directory",
-                    "description": "List contents of a directory",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "directory_path": {
-                                "type": "string",
-                                "description": "Path to the directory to list"
-                            }
-                        },
-                        "required": ["directory_path"]
-                    }
-                }
+                "name": "list_directory",
+                "description": "List contents of a directory",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "directory_path": {
+                            "type": "string",
+                            "description": "Path to the directory to list"
+                        }
+                    },
+                    "required": ["directory_path"],
+                    "additionalProperties": False
+                },
+                "strict": True
             },
             {
                 "type": "function",
-                "function": {
-                    "name": "ask_question",
-                    "description": "Ask a clarifying question",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "question": {
-                                "type": "string",
-                                "description": "The question to ask"
-                            }
-                        },
-                        "required": ["question"]
-                    }
-                }
+                "name": "ask_question",
+                "description": "Ask a clarifying question",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "question": {
+                            "type": "string",
+                            "description": "The question to ask"
+                        }
+                    },
+                    "required": ["question"],
+                    "additionalProperties": False
+                },
+                "strict": True
             }
         ]
     
@@ -173,7 +157,8 @@ Start by requesting the directory structure of the source project."""
 
         return MCPMessage(
             role=MCPMessageType.SYSTEM,
-            content=system_prompt
+            content=system_prompt,
+            id="system"
         )
     
     def add_message(self, message: MCPMessage) -> None:
@@ -183,43 +168,6 @@ Start by requesting the directory structure of the source project."""
     def get_conversation_history(self) -> List[Dict[str, Any]]:
         """Get the conversation history in dictionary format."""
         return [msg.to_dict() for msg in self.conversation_history]
-    
-    def parse_tool_calls(self, response: str) -> List[MCPToolCall]:
-        """Parse tool calls from LLM response."""
-        tool_calls = []
-        
-        # Look for tool call patterns in the response
-        # Format: TOOL_CALL: {"name": "tool_name", "arguments": {...}}
-        tool_call_pattern = r'TOOL_CALL:\s*(\{.*?\})'
-        matches = re.findall(tool_call_pattern, response, re.DOTALL)
-        
-        for i, match in enumerate(matches):
-            try:
-                tool_data = json.loads(match)
-                tool_call = MCPToolCall(
-                    id=f"call_{i}",
-                    type="function",
-                    function=tool_data
-                )
-                tool_calls.append(tool_call)
-            except json.JSONDecodeError:
-                continue
-                
-        return tool_calls
-    
-    def format_tool_response(self, tool_call_id: str, result: Any, 
-                           success: bool = True, error: Optional[str] = None) -> MCPMessage:
-        """Format a tool response message."""
-        if success:
-            content = f"Tool call {tool_call_id} completed successfully. Result: {result}"
-        else:
-            content = f"Tool call {tool_call_id} failed. Error: {error}"
-            
-        return MCPMessage(
-            role=MCPMessageType.TOOL_RESPONSE,
-            content=content,
-            tool_call_id=tool_call_id
-        )
     
     def get_available_tools(self) -> List[Dict[str, Any]]:
         """Get list of available tools."""
