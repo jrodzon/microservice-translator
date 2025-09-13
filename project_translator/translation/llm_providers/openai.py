@@ -7,16 +7,18 @@ during project translation using the Responses API.
 
 from typing import List, Dict, Any, Optional
 from openai.types.responses.response_input_item import Message, ResponseInputItem
+from openai.types.responses.response_input_text import ResponseInputText
 from openai.types.responses.response_input_item import FunctionCallOutput
 from openai.types.responses.response_output_item import ResponseOutputItem
 from openai.types.responses.response_output_message import ResponseOutputMessage
 from openai.types.responses.response_function_tool_call import ResponseFunctionToolCall
+from openai.types.responses.response_output_text import ResponseOutputText
 from rich.console import Console
 
 from project_translator.translation.protocols.mcp import MCPMessage, MCPMessageType
 from project_translator.translation.protocols.mcp import FunctionCallContent
-from project_translator.translation.llm_providers.base import BaseLLMProvider, LLMResponse
-from project_translator.utils import get_logger
+from project_translator.translation.llm_providers.base import BaseLLMProvider, LLMResponse, UsageData
+from project_translator.utils import get_logger, error_with_stacktrace
 
 console = Console()
 logger = get_logger("openai_provider")
@@ -68,15 +70,15 @@ class OpenAIProvider(BaseLLMProvider):
             role = message.role
             content = message.content
             if role == MCPMessageType.SYSTEM:
-                input_parts.append(Message(role="system", content=content))
+                input_parts.append(Message(role="system", content=[ResponseInputText(text=content, type="input_text")]))
             elif role == MCPMessageType.USER:
-                input_parts.append(Message(role="user", content=content))
+                input_parts.append(Message(role="user", content=[ResponseInputText(text=content, type="input_text")]))
             elif role == MCPMessageType.ASSISTANT:
-                input_parts.append(ResponseOutputMessage(content=content, id=message.id))
+                input_parts.append(ResponseOutputMessage(content=[ResponseOutputText(text=content, type="output_text", annotations=[])], id=message.id, role="assistant", status="completed", type="message"))
             elif role == MCPMessageType.FUNCTION_CALL:
-                input_parts.append(ResponseFunctionToolCall(name=content.name, arguments=content.arguments, call_id=message.id))
+                input_parts.append(ResponseFunctionToolCall(name=content.name, arguments=content.arguments, call_id=message.id, status="completed", type="function_call"))
             elif role == MCPMessageType.FUNCTION_RESPONSE:
-                input_parts.append(FunctionCallOutput(call_id=message.id, output=content))
+                input_parts.append(FunctionCallOutput(call_id=message.id, output=content, status="completed", type="function_call_output"))
         
         return input_parts
     
@@ -122,7 +124,9 @@ class OpenAIProvider(BaseLLMProvider):
             
             response = self.client.responses.create(**request_params)
 
-            logger.info(f"Received response from OpenAI: {len(response.content)} chars")
+            self.raw_responses.append(response.to_dict())
+            
+            logger.info(f"Received response from OpenAI: {len(response.model_dump_json(indent=2))} chars")
             logger.debug(f"Response: {response.model_dump_json(indent=2)}")
             
             # Extract response data from Responses API format
@@ -141,17 +145,17 @@ class OpenAIProvider(BaseLLMProvider):
             # Extract usage information
             usage = None
             if hasattr(response, 'usage') and response.usage:
-                usage = {
-                    "prompt_tokens": response.usage.prompt_tokens,
-                    "completion_tokens": response.usage.completion_tokens,
-                    "total_tokens": response.usage.total_tokens
-                }
+                usage = UsageData(
+                    input_tokens= response.usage.input_tokens,
+                    output_tokens= response.usage.output_tokens,
+                    total_tokens= response.usage.total_tokens
+                )
             
-            return LLMResponse(messages=response_messages, usage=usage, is_complete=response.status == "completed")
+            return LLMResponse(messages=response_messages, usage=usage)
             
         except Exception as e:
             error_msg = f"Error sending message to OpenAI: {str(e)}"
-            logger.error(error_msg)
+            error_with_stacktrace(error_msg, e)
             console.print(f"[red]OpenAI API Error: {error_msg}[/red]")
             raise
 
@@ -220,7 +224,7 @@ class OpenAIProvider(BaseLLMProvider):
                 
             return True
         except Exception as e:
-            logger.error(f"OpenAI configuration validation failed: {e}")
+            error_with_stacktrace("OpenAI configuration validation failed", e)
             return False
     
     def get_model_info(self) -> Dict[str, Any]:
@@ -301,7 +305,8 @@ class OpenAIProvider(BaseLLMProvider):
         """
         Convert OpenAI output message to MCP message.
         """
-        return MCPMessage(role=MCPMessageType.ASSISTANT, content=output_item.content, id=output_item.id)
+        content = "\n".join([x.text for x in output_item.content])
+        return MCPMessage(role=MCPMessageType.ASSISTANT, content=content, id=output_item.id)
         
     def _convert_openai_output_function_call_to_mcp_message(self, output_item: ResponseFunctionToolCall) -> MCPMessage:
         """
@@ -313,4 +318,4 @@ class OpenAIProvider(BaseLLMProvider):
         """
         Convert OpenAI output to MCP message.
         """
-        return MCPMessage(role=MCPMessageType.ASSISTANT, content=output_item.output, id=output_item.id)
+        return MCPMessage(role=MCPMessageType.ASSISTANT, content=str(output_item.output), id=output_item.id)

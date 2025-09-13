@@ -18,8 +18,8 @@ logger = get_logger("llm_provider")
 @dataclass
 class UsageData:
     """Represents usage data."""
-    prompt_tokens: int
-    completion_tokens: int
+    input_tokens: int
+    output_tokens: int
     total_tokens: int
 
 
@@ -28,7 +28,6 @@ class LLMResponse:
     """Represents an LLM response."""
     messages: List[MCPMessage]
     usage: UsageData
-    is_complete: bool
 
 
 
@@ -47,6 +46,7 @@ class BaseLLMProvider(ABC):
         self.model = model
         self.api_key = api_key
         self.kwargs = kwargs
+        self.raw_responses = []
         logger.info(f"Initialized {self.__class__.__name__} with model: {model}")
     
     @abstractmethod
@@ -112,3 +112,12 @@ class BaseLLMProvider(ABC):
             "has_api_key": bool(self.api_key),
             "available_models": self.get_available_models()
         }
+    
+    def get_raw_responses(self) -> List[Any]:
+        """
+        Get raw responses from the LLM provider.
+        
+        Returns:
+            List of raw responses
+        """
+        return self.raw_responses

@@ -181,6 +181,24 @@ class ProjectTranslatorLogger:
         
         # Log full traceback at DEBUG level
         self.logger.debug("Full traceback:", exc_info=True)
+    
+    def error_with_stacktrace(self, message: str, exception: Exception = None):
+        """
+        Log error message with full stacktrace.
+        
+        Args:
+            message: Error message to log
+            exception: Optional exception object for additional context
+        """
+        import traceback
+        
+        if exception:
+            error_msg = f"{message}: {str(exception)}"
+        else:
+            error_msg = message
+        
+        stacktrace = traceback.format_exc()
+        self.logger.error(f"{error_msg}\nStacktrace:\n{stacktrace}")
 
 
 # Global logger instance
@@ -225,3 +243,17 @@ def get_log_file_path() -> str:
         setup_logging()
     
     return _logger_instance.get_log_file_path()
+
+
+def error_with_stacktrace(message: str, exception: Exception = None):
+    """
+    Log error message with full stacktrace using the global logger.
+    
+    Args:
+        message: Error message to log
+        exception: Optional exception object for additional context
+    """
+    if _logger_instance is None:
+        setup_logging()
+    
+    _logger_instance.error_with_stacktrace(message, exception)

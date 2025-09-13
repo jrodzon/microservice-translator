@@ -16,7 +16,7 @@ from .protocols.mcp import MCPProtocol, MCPMessage, MCPMessageType
 from .llm_providers.base import BaseLLMProvider, LLMResponse
 from .tools.file_operations import FileOperationsTool
 from .tools.project_analysis import ProjectAnalysisTool
-from project_translator.utils import get_logger
+from project_translator.utils import get_logger, error_with_stacktrace
 
 console = Console()
 logger = get_logger("translator")
@@ -38,7 +38,6 @@ class ProjectTranslator:
         self.source_lang = source_lang
         self.target_lang = target_lang
         self.mcp_protocol = MCPProtocol()
-        self.conversation_history: List[Dict[str, Any]] = []
         self.translation_stats = {
             "files_read": 0,
             "files_written": 0,
@@ -131,7 +130,7 @@ class ProjectTranslator:
             
         except Exception as e:
             error_msg = f"Translation failed: {str(e)}"
-            logger.error(error_msg)
+            error_with_stacktrace(error_msg, e)
             console.print(f"[red]❌ {error_msg}[/red]")
             
             self.translation_stats["end_time"] = time.time()
@@ -150,7 +149,6 @@ class ProjectTranslator:
         
         # Add to conversation history
         self.mcp_protocol.add_message(system_message)
-        self.conversation_history = self.mcp_protocol.get_conversation_history()
         
         logger.info("Conversation initialized with LLM")
     
@@ -170,64 +168,60 @@ class ProjectTranslator:
             try:
                 # Send conversation to LLM
                 response = self.llm_provider.send_message(
-                    self.conversation_history,
+                    self.mcp_protocol.get_conversation_history(),
                     tools=self.mcp_protocol.get_available_tools()
                 )
                 
                 # Add LLM response to conversation
                 self._add_llm_response(response)
                 
-                # Check if translation is complete
-                if response.is_complete:
-                    return {
-                        "success": True,
-                        "message": "Translation completed successfully",
-                        "iterations": iteration,
-                        "conversation_length": len(self.conversation_history)
-                    }
-                
                 tool_calls = self._process_tool_calls(
                     response.messages, file_ops, project_analysis
                 )
 
-                self.mcp_protocol.add_message(tool_calls)
-                
-                # Update conversation history
-                self.conversation_history = self.mcp_protocol.get_conversation_history()
+                for tool_call in tool_calls:
+                    self.mcp_protocol.add_message(tool_call)
                 
                 # Auto-save conversation if enabled
                 if save_conversation and conversation_path and iteration % auto_save_interval == 0:
                     self.save_conversation(conversation_path)
                     logger.info(f"Auto-saved conversation at iteration {iteration}")
+
+                if self._is_translation_complete(tool_calls):
+                    return {
+                        "success": True,
+                        "message": "Translation completed successfully",
+                        "iterations": iteration,
+                        "conversation_length": len(self.mcp_protocol.get_conversation_history())
+                    }
                 
                 # Small delay to prevent rate limiting
                 time.sleep(0.5)
                 
             except Exception as e:
                 error_msg = f"Error in iteration {iteration}: {str(e)}"
-                logger.error(error_msg)
+                error_with_stacktrace(error_msg, e)
                 self.translation_stats["errors"] += 1
                 
                 # Add error to conversation
                 error_message = MCPMessage(
+                    id=f"error_{iteration}",
                     role=MCPMessageType.USER,
                     content=f"Error occurred: {error_msg}. Please continue with the translation."
                 )
                 self.mcp_protocol.add_message(error_message)
-                self.conversation_history = self.mcp_protocol.get_conversation_history()
         
         return {
             "success": False,
             "error": f"Translation did not complete within {max_iterations} iterations",
             "iterations": iteration,
-            "conversation_length": len(self.conversation_history)
+            "conversation_length": len(self.mcp_protocol.get_conversation_history())
         }
     
     def _add_llm_response(self, response: LLMResponse) -> None:
         """Add LLM response to conversation history."""
         for item in response.messages:
             self.mcp_protocol.add_message(item)
-        self.conversation_history = self.mcp_protocol.get_conversation_history()
         
         logger.info(f"Added LLM response: {len(response.messages)} messages")
     
@@ -263,6 +257,9 @@ class ProjectTranslator:
                     
                 elif tool_name == "ask_question":
                     result = self._handle_question(arguments["question"])
+
+                elif tool_name == "translation_complete":
+                    result = self._handle_translation_complete(arguments["translation_summary"])
                     
                 else:
                     result = {
@@ -273,14 +270,14 @@ class ProjectTranslator:
                 # Format result for LLM
                 tool_call_result = MCPMessage(
                     role=MCPMessageType.FUNCTION_RESPONSE,
-                    content=result,
+                    content=str(result),
                     id=tool_call.id
                 )
                 results.append(tool_call_result)
                 
             except Exception as e:
                 error_msg = f"Error processing tool call {tool_call.id}: {str(e)}"
-                logger.error(error_msg)
+                error_with_stacktrace(error_msg, e)
                 self.translation_stats["errors"] += 1
                 
                 tool_call_result = MCPMessage(
@@ -307,6 +304,18 @@ class ProjectTranslator:
             "question": question
         }
     
+    def _handle_translation_complete(self, translation_summary: str) -> Dict[str, Any]:
+        """Handle translation complete from the LLM."""
+        console.print(f"[green]🎉 Translation complete: {translation_summary}[/green]")
+        return {
+            "success": True,
+            "translation_summary": translation_summary
+        }
+    
+    def _is_translation_complete(self, tool_calls: List[MCPMessage]) -> bool:
+        """Check if translation is complete."""
+        return any(tool_call.role == MCPMessageType.FUNCTION_CALL and tool_call.content.name == "translation_complete" for tool_call in tool_calls)
+    
     def get_translation_summary(self) -> Dict[str, Any]:
         """Get summary of translation process."""
         duration = None
@@ -321,7 +330,7 @@ class ProjectTranslator:
             "files_created": self.translation_stats["files_written"],
             "tool_calls": self.translation_stats["tool_calls"],
             "errors": self.translation_stats["errors"],
-            "conversation_length": len(self.conversation_history)
+            "conversation_length": len(self.mcp_protocol.get_conversation_history())
         }
     
     def _setup_conversation_saving(self, conversation_dir: str, conversation_file: str, 
@@ -383,7 +392,8 @@ class ProjectTranslator:
         try:
             conversation_data = {
                 "translation_summary": self.get_translation_summary(),
-                "conversation_history": self.conversation_history,
+                "conversation_history": list(map(lambda x: x.to_dict(), self.mcp_protocol.get_conversation_history())),
+                "raw_responses": self.llm_provider.get_raw_responses(),
                 "mcp_protocol": {
                     "available_tools": self.mcp_protocol.get_available_tools()
                 }
@@ -396,5 +406,5 @@ class ProjectTranslator:
             return True
             
         except Exception as e:
-            logger.error(f"Error saving conversation: {e}")
+            error_with_stacktrace("Error saving conversation", e)
             return False

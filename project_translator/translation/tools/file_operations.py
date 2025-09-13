@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 from rich.console import Console
 
-from project_translator.utils import get_logger
+from project_translator.utils import get_logger, error_with_stacktrace
 
 console = Console()
 logger = get_logger("file_operations")
@@ -91,7 +91,7 @@ class FileOperationsTool:
             
         except Exception as e:
             error_msg = f"Error reading file {file_path}: {str(e)}"
-            logger.error(error_msg)
+            error_with_stacktrace(error_msg, e)
             return {
                 "success": False,
                 "error": error_msg
@@ -141,7 +141,7 @@ class FileOperationsTool:
             
         except Exception as e:
             error_msg = f"Error writing file {file_path}: {str(e)}"
-            logger.error(error_msg)
+            error_with_stacktrace(error_msg, e)
             return {
                 "success": False,
                 "error": error_msg
@@ -206,7 +206,7 @@ class FileOperationsTool:
             
         except Exception as e:
             error_msg = f"Error listing directory {directory_path}: {str(e)}"
-            logger.error(error_msg)
+            error_with_stacktrace(error_msg, e)
             return {
                 "success": False,
                 "error": error_msg
@@ -233,7 +233,7 @@ class FileOperationsTool:
             
         except Exception as e:
             error_msg = f"Error building project structure: {str(e)}"
-            logger.error(error_msg)
+            error_with_stacktrace(error_msg, e)
             return {
                 "success": False,
                 "error": error_msg
@@ -263,7 +263,7 @@ class FileOperationsTool:
                     "count": len(children)
                 }
         except Exception as e:
-            logger.warning(f"Error processing {path}: {e}")
+            error_with_stacktrace(f"Error processing {path}", e)
             return {
                 "name": path.name,
                 "type": "error",
@@ -311,7 +311,9 @@ class FileOperationsTool:
             }
             
         except Exception as e:
+            error_msg = f"Error getting file info for {file_path}: {str(e)}"
+            error_with_stacktrace(error_msg, e)
             return {
                 "success": False,
-                "error": f"Error getting file info for {file_path}: {str(e)}"
+                "error": error_msg
             }

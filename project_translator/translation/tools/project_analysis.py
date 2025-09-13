@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from rich.console import Console
 
-from project_translator.utils import get_logger
+from project_translator.utils import get_logger, error_with_stacktrace
 
 console = Console()
 logger = get_logger("project_analysis")
@@ -56,7 +56,7 @@ class ProjectAnalysisTool:
             
         except Exception as e:
             error_msg = f"Error analyzing project: {str(e)}"
-            logger.error(error_msg)
+            error_with_stacktrace(error_msg, e)
             return {
                 "success": False,
                 "error": error_msg
@@ -116,7 +116,7 @@ class ProjectAnalysisTool:
                     deps = [line.strip() for line in f if line.strip() and not line.startswith('#')]
                 dependencies["python"] = deps
             except Exception as e:
-                logger.warning(f"Error reading requirements.txt: {e}")
+                error_with_stacktrace("Error reading requirements.txt", e)
         
         # Node.js
         package_file = self.source_path / "package.json"
@@ -127,7 +127,7 @@ class ProjectAnalysisTool:
                 deps = list(package_data.get("dependencies", {}).keys())
                 dependencies["nodejs"] = deps
             except Exception as e:
-                logger.warning(f"Error reading package.json: {e}")
+                error_with_stacktrace("Error reading package.json", e)
         
         return dependencies
     
@@ -179,7 +179,7 @@ class ProjectAnalysisTool:
                             "framework": self._detect_framework(content)
                         })
                 except Exception as e:
-                    logger.warning(f"Error analyzing {api_file}: {e}")
+                    error_with_stacktrace(f"Error analyzing {api_file}", e)
         
         return endpoints
     
@@ -231,7 +231,7 @@ class ProjectAnalysisTool:
                         break
                         
             except Exception as e:
-                logger.warning(f"Error analyzing Dockerfile: {e}")
+                error_with_stacktrace("Error analyzing Dockerfile", e)
         
         # Check for docker-compose
         compose_files = ["docker-compose.yml", "docker-compose.yaml"]
@@ -323,7 +323,7 @@ class ProjectAnalysisTool:
             
         except Exception as e:
             error_msg = f"Error generating translation plan: {str(e)}"
-            logger.error(error_msg)
+            error_with_stacktrace(error_msg, e)
             return {
                 "success": False,
                 "error": error_msg
