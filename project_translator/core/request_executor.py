@@ -148,23 +148,23 @@ class RequestExecutor:
         if step.expected_response is not None:
             content_match = self._check_response_content(response_data, step.expected_response)
             if not content_match:
-                errors.append("Response content does not match expected values")
+                errors.append(f"Response content does not match expected values.\nExpected: {step.expected_response}\nGot: {response_data}")
         elif step.expected_response_contains is not None:
             content_match = self._check_response_contains(response_data, step.expected_response_contains)
             if not content_match:
-                errors.append("Response does not contain expected keys")
+                errors.append(f"Response does not contain expected keys.\nExpected: {step.expected_response_contains}\nGot: {response_data}")
         elif step.expected_response_type is not None:
             content_match = self._check_response_type(response_data, step.expected_response_type.value)
             if not content_match:
-                errors.append(f"Response type mismatch: expected {step.expected_response_type.value}")
+                errors.append(f"Response type mismatch: expected {step.expected_response_type.value}\nGot: {response_data}")
         elif step.expected_min_items is not None:
             content_match = self._check_min_items(response_data, step.expected_min_items)
             if not content_match:
-                errors.append(f"Response has fewer items than expected minimum: {step.expected_min_items}")
+                errors.append(f"Response has fewer items than expected minimum: {step.expected_min_items}\nGot: {response_data}")
         elif step.expected_items is not None:
             content_match = self._check_exact_items(response_data, step.expected_items)
             if not content_match:
-                errors.append(f"Response item count mismatch: expected {step.expected_items}")
+                errors.append(f"Response item count mismatch: expected {step.expected_items}\nGot: {response_data}")
         
         return {
             "success": status_match and content_match,

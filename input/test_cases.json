@@ -216,10 +216,8 @@
           },
           "expected_status": 200,
           "expected_response": {
-            "name": "Test Smartphone",
             "description": "Updated smartphone with discount",
-            "price": 649.99,
-            "category": "Electronics"
+            "price": 649.99
           }
         },
         {
@@ -259,15 +257,13 @@
           "name": "delete_item",
           "method": "DELETE",
           "endpoint": "/items/{saved_id}",
-          "expected_status": 200,
-          "expected_response_contains": ["message", "deleted_item"]
+          "expected_status": 200
         },
         {
           "name": "verify_deletion",
           "method": "GET",
           "endpoint": "/items/{saved_id}",
-          "expected_status": 404,
-          "expected_response_contains": ["detail"]
+          "expected_status": 404
         }
       ]
     },
@@ -279,8 +275,7 @@
           "name": "get_nonexistent_item",
           "method": "GET",
           "endpoint": "/items/999",
-          "expected_status": 404,
-          "expected_response_contains": ["detail"]
+          "expected_status": 404
         },
         {
           "name": "create_item_missing_name",

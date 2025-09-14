@@ -26,29 +26,10 @@ A simple CRUD REST API service designed for testing translation capabilities usi
 
 ## Quick Start
 
-### Prerequisites
-- Docker and docker-compose installed and running
-- Bash shell (Linux/macOS) or Git Bash (Windows)
+Build and run the docker image:
 
-### Option 1: Using Scripts (Recommended)
 ```bash
-# Start the service
-./start.sh
-
-# Stop the service
-./shutdown.sh
-```
-
-### Option 2: Using docker-compose directly
-```bash
-# Start the service
-docker-compose up -d --build
-
-# Stop the service
-docker-compose down
-
-# View logs
-docker-compose logs -f
+docker run -p 8000:8000 --rm -it $(docker build -q .)
 ```
 
 The service will be available at:
@@ -84,20 +65,6 @@ curl -X PUT http://localhost:8000/items/1 \
 curl -X DELETE http://localhost:8000/items/1
 ```
 
-## Test Cases
-
-The `test_cases.json` file contains comprehensive test scenarios including:
-
-- **Service Health**: Basic health and endpoint verification
-- **Data Setup**: Self-contained data creation for testing
-- **Basic CRUD Operations**: Create, Read, Update, Delete
-- **Error Handling**: 404 errors, validation errors
-- **Edge Cases**: Non-existent items, missing fields, special characters
-- **Workflow Tests**: Complete CRUD workflows
-- **Category Filtering**: Case-insensitive category-based queries
-- **Bulk Operations**: Multiple item creation and management
-- **Data Validation**: Edge cases with extreme values and unicode
-
 ## Development
 
 ### Local Development (without Docker)
@@ -117,29 +84,6 @@ pip install -r requirements.txt
 ```bash
 python app.py
 ```
-
-### Project Structure
-
-```
-test-project/
-├── app.py              # Main FastAPI application
-├── requirements.txt    # Python dependencies
-├── Dockerfile         # Docker configuration
-├── docker-compose.yml # Docker Compose configuration
-├── start.sh           # Startup script (uses docker-compose)
-├── shutdown.sh        # Shutdown script (uses docker-compose)
-├── test_cases.json    # Test cases definition
-└── README.md          # This file
-```
-
-## Translation Testing
-
-This service is designed to be translated to different programming languages using LLMs. The structure includes:
-
-- **Clear API contracts** with Pydantic models
-- **Comprehensive test cases** for validation
-- **Simple business logic** for easy translation
-- **Standard REST patterns** for consistency
 
 ## API Documentation
 

@@ -42,8 +42,8 @@ class ProjectTranslatorLogger:
         log_dir = Path("logs")
         log_dir.mkdir(exist_ok=True)
         
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return str(log_dir / f"project_translator_{timestamp}.log")
+        # Use a consistent log file name instead of timestamped files
+        return str(log_dir / "project_translator.log")
     
     def _setup_logging(self):
         """Set up logging configuration."""
@@ -51,8 +51,16 @@ class ProjectTranslatorLogger:
         self.logger = logging.getLogger("project_translator")
         self.logger.setLevel(self.log_level)
         
-        # Clear existing handlers
+        # Clear existing handlers to prevent duplicates
         self.logger.handlers.clear()
+        
+        # Also clear any parent logger handlers that might interfere
+        parent_logger = self.logger.parent
+        if parent_logger:
+            # Remove any handlers from parent that might be duplicated
+            for handler in parent_logger.handlers[:]:
+                if hasattr(handler, 'baseFilename') and str(handler.baseFilename).endswith('project_translator.log'):
+                    parent_logger.removeHandler(handler)
         
         # Create formatters
         detailed_formatter = logging.Formatter(
@@ -199,6 +207,12 @@ class ProjectTranslatorLogger:
         
         stacktrace = traceback.format_exc()
         self.logger.error(f"{error_msg}\nStacktrace:\n{stacktrace}")
+    
+    def cleanup(self):
+        """Clean up logging handlers and close file handles."""
+        for handler in self.logger.handlers[:]:
+            handler.close()
+            self.logger.removeHandler(handler)
 
 
 # Global logger instance
@@ -217,7 +231,18 @@ def setup_logging(log_level: str = "INFO", log_file: Optional[str] = None) -> Pr
         Logger instance
     """
     global _logger_instance
-    _logger_instance = ProjectTranslatorLogger(log_level, log_file)
+    
+    # Only create a new instance if one doesn't exist or if parameters have changed
+    if _logger_instance is None:
+        _logger_instance = ProjectTranslatorLogger(log_level, log_file)
+    else:
+        # Update existing instance if parameters are different
+        if _logger_instance.log_level != getattr(logging, log_level.upper(), logging.INFO):
+            _logger_instance.set_level(log_level)
+        if log_file and _logger_instance.log_file != log_file:
+            # Recreate logger with new file path
+            _logger_instance = ProjectTranslatorLogger(log_level, log_file)
+    
     return _logger_instance
 
 
@@ -257,3 +282,11 @@ def error_with_stacktrace(message: str, exception: Exception = None):
         setup_logging()
     
     _logger_instance.error_with_stacktrace(message, exception)
+
+
+def cleanup_logging():
+    """Clean up the global logger instance."""
+    global _logger_instance
+    if _logger_instance is not None:
+        _logger_instance.cleanup()
+        _logger_instance = None

@@ -1,4 +1,1124 @@
 {
   "success": false,
-  "error": "Failed to start service"
+  "test_suite": "CRUD API Test Scenarios",
+  "total_scenarios": 10,
+  "passed_scenarios": 9,
+  "scenario_results": [
+    {
+      "scenario_name": "service_health_verification",
+      "scenario_description": "Verify service is running and healthy",
+      "success": true,
+      "step_results": [
+        {
+          "step_name": "check_root_endpoint",
+          "step_number": 1,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "message": "Test CRUD Service is running",
+            "version": "1.0.0",
+            "endpoints": {
+              "items": "/items",
+              "health": "/health"
+            }
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "check_health_endpoint",
+          "step_number": 2,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "status": "healthy",
+            "service": "crud-api"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        }
+      ],
+      "total_steps": 2,
+      "passed_steps": 2
+    },
+    {
+      "scenario_name": "initial_data_setup",
+      "scenario_description": "Set up initial test data for other scenarios",
+      "success": true,
+      "step_results": [
+        {
+          "step_name": "verify_empty_database",
+          "step_number": 1,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": [],
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "create_laptop_item",
+          "step_number": 2,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 1,
+            "name": "Laptop",
+            "description": "High-performance laptop",
+            "price": 999.99,
+            "category": "Electronics"
+          },
+          "content_match": true,
+          "saved_field": "laptop_id",
+          "validation_errors": []
+        },
+        {
+          "step_name": "create_book_item",
+          "step_number": 3,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 2,
+            "name": "Book",
+            "description": "Programming guide",
+            "price": 29.99,
+            "category": "Books"
+          },
+          "content_match": true,
+          "saved_field": "book_id",
+          "validation_errors": []
+        },
+        {
+          "step_name": "create_coffee_item",
+          "step_number": 4,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 3,
+            "name": "Coffee",
+            "description": "Premium coffee beans",
+            "price": 15.99,
+            "category": "Food"
+          },
+          "content_match": true,
+          "saved_field": "coffee_id",
+          "validation_errors": []
+        },
+        {
+          "step_name": "verify_initial_data_created",
+          "step_number": 5,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": [
+            {
+              "id": 1,
+              "name": "Laptop",
+              "description": "High-performance laptop",
+              "price": 999.99,
+              "category": "Electronics"
+            },
+            {
+              "id": 2,
+              "name": "Book",
+              "description": "Programming guide",
+              "price": 29.99,
+              "category": "Books"
+            },
+            {
+              "id": 3,
+              "name": "Coffee",
+              "description": "Premium coffee beans",
+              "price": 15.99,
+              "category": "Food"
+            }
+          ],
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        }
+      ],
+      "total_steps": 5,
+      "passed_steps": 5
+    },
+    {
+      "scenario_name": "initial_data_verification",
+      "scenario_description": "Verify initial test data is accessible",
+      "success": true,
+      "step_results": [
+        {
+          "step_name": "get_all_items",
+          "step_number": 1,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": [
+            {
+              "id": 1,
+              "name": "Laptop",
+              "description": "High-performance laptop",
+              "price": 999.99,
+              "category": "Electronics"
+            },
+            {
+              "id": 2,
+              "name": "Book",
+              "description": "Programming guide",
+              "price": 29.99,
+              "category": "Books"
+            },
+            {
+              "id": 3,
+              "name": "Coffee",
+              "description": "Premium coffee beans",
+              "price": 15.99,
+              "category": "Food"
+            }
+          ],
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "verify_laptop_item",
+          "step_number": 2,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 1,
+            "name": "Laptop",
+            "description": "High-performance laptop",
+            "price": 999.99,
+            "category": "Electronics"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "verify_book_item",
+          "step_number": 3,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 2,
+            "name": "Book",
+            "description": "Programming guide",
+            "price": 29.99,
+            "category": "Books"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "verify_coffee_item",
+          "step_number": 4,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 3,
+            "name": "Coffee",
+            "description": "Premium coffee beans",
+            "price": 15.99,
+            "category": "Food"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        }
+      ],
+      "total_steps": 4,
+      "passed_steps": 4
+    },
+    {
+      "scenario_name": "complete_crud_workflow",
+      "scenario_description": "Test complete CRUD workflow with a single item",
+      "success": true,
+      "step_results": [
+        {
+          "step_name": "create_new_item",
+          "step_number": 1,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 4,
+            "name": "Test Smartphone",
+            "description": "Latest model smartphone",
+            "price": 699.99,
+            "category": "Electronics"
+          },
+          "content_match": true,
+          "saved_field": "id",
+          "validation_errors": []
+        },
+        {
+          "step_name": "read_created_item",
+          "step_number": 2,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 4,
+            "name": "Test Smartphone",
+            "description": "Latest model smartphone",
+            "price": 699.99,
+            "category": "Electronics"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "update_item_partial",
+          "step_number": 3,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 4,
+            "description": "Updated smartphone with discount",
+            "price": 649.99
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "update_item_complete",
+          "step_number": 4,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 4,
+            "name": "Premium Smartphone",
+            "description": "Top-tier smartphone model",
+            "price": 799.99,
+            "category": "Premium Electronics"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "verify_final_update",
+          "step_number": 5,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 4,
+            "name": "Premium Smartphone",
+            "description": "Top-tier smartphone model",
+            "price": 799.99,
+            "category": "Premium Electronics"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "delete_item",
+          "step_number": 6,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 4,
+            "name": "Premium Smartphone",
+            "description": "Top-tier smartphone model",
+            "price": 799.99,
+            "category": "Premium Electronics"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "verify_deletion",
+          "step_number": 7,
+          "success": true,
+          "status_code": 404,
+          "expected_status": 404,
+          "response_data": "Item not found",
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        }
+      ],
+      "total_steps": 7,
+      "passed_steps": 7
+    },
+    {
+      "scenario_name": "error_handling_scenarios",
+      "scenario_description": "Test various error conditions and edge cases",
+      "success": false,
+      "step_results": [
+        {
+          "step_name": "get_nonexistent_item",
+          "step_number": 1,
+          "success": true,
+          "status_code": 404,
+          "expected_status": 404,
+          "response_data": "Item not found",
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "create_item_missing_name",
+          "step_number": 2,
+          "success": false,
+          "status_code": 200,
+          "expected_status": 422,
+          "response_data": {
+            "id": 5,
+            "description": "Item without name",
+            "price": 29.99,
+            "category": "Test"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": [
+            "Status code mismatch: expected 422, got 200"
+          ]
+        },
+        {
+          "step_name": "create_item_missing_price",
+          "step_number": 3,
+          "success": false,
+          "status_code": 200,
+          "expected_status": 422,
+          "response_data": {
+            "id": 6,
+            "name": "Item without price",
+            "description": "Test item",
+            "category": "Test"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": [
+            "Status code mismatch: expected 422, got 200"
+          ]
+        },
+        {
+          "step_name": "create_item_missing_category",
+          "step_number": 4,
+          "success": false,
+          "status_code": 200,
+          "expected_status": 422,
+          "response_data": {
+            "id": 7,
+            "name": "Item without category",
+            "description": "Test item",
+            "price": 19.99
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": [
+            "Status code mismatch: expected 422, got 200"
+          ]
+        },
+        {
+          "step_name": "update_nonexistent_item",
+          "step_number": 5,
+          "success": true,
+          "status_code": 404,
+          "expected_status": 404,
+          "response_data": "Item not found",
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "delete_nonexistent_item",
+          "step_number": 6,
+          "success": true,
+          "status_code": 404,
+          "expected_status": 404,
+          "response_data": "Item not found",
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        }
+      ],
+      "total_steps": 6,
+      "passed_steps": 3
+    },
+    {
+      "scenario_name": "category_filtering_scenarios",
+      "scenario_description": "Test category-based filtering functionality",
+      "success": true,
+      "step_results": [
+        {
+          "step_name": "get_electronics_items",
+          "step_number": 1,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": [
+            {
+              "id": 1,
+              "name": "Laptop",
+              "description": "High-performance laptop",
+              "price": 999.99,
+              "category": "Electronics"
+            }
+          ],
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "get_books_items",
+          "step_number": 2,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": [
+            {
+              "id": 2,
+              "name": "Book",
+              "description": "Programming guide",
+              "price": 29.99,
+              "category": "Books"
+            }
+          ],
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "get_food_items",
+          "step_number": 3,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": [
+            {
+              "id": 3,
+              "name": "Coffee",
+              "description": "Premium coffee beans",
+              "price": 15.99,
+              "category": "Food"
+            }
+          ],
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "get_nonexistent_category",
+          "step_number": 4,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": [],
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "test_case_insensitive_filtering",
+          "step_number": 5,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": [],
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "test_mixed_case_filtering",
+          "step_number": 6,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": [],
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        }
+      ],
+      "total_steps": 6,
+      "passed_steps": 6
+    },
+    {
+      "scenario_name": "data_validation_scenarios",
+      "scenario_description": "Test data validation and type checking",
+      "success": true,
+      "step_results": [
+        {
+          "step_name": "create_item_with_zero_price",
+          "step_number": 1,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 8,
+            "name": "Free Item",
+            "description": "Item with zero price",
+            "price": 0,
+            "category": "Free"
+          },
+          "content_match": true,
+          "saved_field": "id",
+          "validation_errors": []
+        },
+        {
+          "step_name": "create_item_with_negative_price",
+          "step_number": 2,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 9,
+            "name": "Negative Price Item",
+            "description": "Item with negative price",
+            "price": -10,
+            "category": "Test"
+          },
+          "content_match": true,
+          "saved_field": "id2",
+          "validation_errors": []
+        },
+        {
+          "step_name": "create_item_with_long_name",
+          "step_number": 3,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 10,
+            "name": "This is a very long item name that might test the system's handling of longer strings and see how it behaves with extended text content",
+            "description": "Item with very long name",
+            "price": 1,
+            "category": "Long Name Test"
+          },
+          "content_match": true,
+          "saved_field": "id3",
+          "validation_errors": []
+        },
+        {
+          "step_name": "cleanup_test_items",
+          "step_number": 4,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 8,
+            "name": "Free Item",
+            "description": "Item with zero price",
+            "price": 0,
+            "category": "Free"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "cleanup_test_items_2",
+          "step_number": 5,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 9,
+            "name": "Negative Price Item",
+            "description": "Item with negative price",
+            "price": -10,
+            "category": "Test"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "cleanup_test_items_3",
+          "step_number": 6,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 10,
+            "name": "This is a very long item name that might test the system's handling of longer strings and see how it behaves with extended text content",
+            "description": "Item with very long name",
+            "price": 1,
+            "category": "Long Name Test"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        }
+      ],
+      "total_steps": 6,
+      "passed_steps": 6
+    },
+    {
+      "scenario_name": "bulk_operations_scenario",
+      "scenario_description": "Test creating and managing multiple items",
+      "success": true,
+      "step_results": [
+        {
+          "step_name": "create_multiple_items",
+          "step_number": 1,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 11,
+            "name": "Bulk Item 1",
+            "description": "First bulk test item",
+            "price": 10.99,
+            "category": "Bulk"
+          },
+          "content_match": true,
+          "saved_field": "bulk_id_1",
+          "validation_errors": []
+        },
+        {
+          "step_name": "create_multiple_items_2",
+          "step_number": 2,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 12,
+            "name": "Bulk Item 2",
+            "description": "Second bulk test item",
+            "price": 20.99,
+            "category": "Bulk"
+          },
+          "content_match": true,
+          "saved_field": "bulk_id_2",
+          "validation_errors": []
+        },
+        {
+          "step_name": "create_multiple_items_3",
+          "step_number": 3,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 13,
+            "name": "Bulk Item 3",
+            "description": "Third bulk test item",
+            "price": 30.99,
+            "category": "Bulk"
+          },
+          "content_match": true,
+          "saved_field": "bulk_id_3",
+          "validation_errors": []
+        },
+        {
+          "step_name": "verify_bulk_category",
+          "step_number": 4,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": [
+            {
+              "id": 11,
+              "name": "Bulk Item 1",
+              "description": "First bulk test item",
+              "price": 10.99,
+              "category": "Bulk"
+            },
+            {
+              "id": 12,
+              "name": "Bulk Item 2",
+              "description": "Second bulk test item",
+              "price": 20.99,
+              "category": "Bulk"
+            },
+            {
+              "id": 13,
+              "name": "Bulk Item 3",
+              "description": "Third bulk test item",
+              "price": 30.99,
+              "category": "Bulk"
+            }
+          ],
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "verify_all_items_count",
+          "step_number": 5,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": [
+            {
+              "id": 1,
+              "name": "Laptop",
+              "description": "High-performance laptop",
+              "price": 999.99,
+              "category": "Electronics"
+            },
+            {
+              "id": 2,
+              "name": "Book",
+              "description": "Programming guide",
+              "price": 29.99,
+              "category": "Books"
+            },
+            {
+              "id": 3,
+              "name": "Coffee",
+              "description": "Premium coffee beans",
+              "price": 15.99,
+              "category": "Food"
+            },
+            {
+              "id": 5,
+              "description": "Item without name",
+              "price": 29.99,
+              "category": "Test"
+            },
+            {
+              "id": 6,
+              "name": "Item without price",
+              "description": "Test item",
+              "category": "Test"
+            },
+            {
+              "id": 11,
+              "name": "Bulk Item 1",
+              "description": "First bulk test item",
+              "price": 10.99,
+              "category": "Bulk"
+            },
+            {
+              "id": 12,
+              "name": "Bulk Item 2",
+              "description": "Second bulk test item",
+              "price": 20.99,
+              "category": "Bulk"
+            },
+            {
+              "id": 13,
+              "name": "Bulk Item 3",
+              "description": "Third bulk test item",
+              "price": 30.99,
+              "category": "Bulk"
+            }
+          ],
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "cleanup_bulk_item_1",
+          "step_number": 6,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 11,
+            "name": "Bulk Item 1",
+            "description": "First bulk test item",
+            "price": 10.99,
+            "category": "Bulk"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "cleanup_bulk_item_2",
+          "step_number": 7,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 12,
+            "name": "Bulk Item 2",
+            "description": "Second bulk test item",
+            "price": 20.99,
+            "category": "Bulk"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "cleanup_bulk_item_3",
+          "step_number": 8,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 13,
+            "name": "Bulk Item 3",
+            "description": "Third bulk test item",
+            "price": 30.99,
+            "category": "Bulk"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "verify_cleanup",
+          "step_number": 9,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": [],
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        }
+      ],
+      "total_steps": 9,
+      "passed_steps": 9
+    },
+    {
+      "scenario_name": "concurrent_operations_scenario",
+      "scenario_description": "Test concurrent read and write operations",
+      "success": true,
+      "step_results": [
+        {
+          "step_name": "create_concurrent_item",
+          "step_number": 1,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 14,
+            "name": "Concurrent Test Item",
+            "description": "Item for concurrent testing",
+            "price": 50,
+            "category": "Concurrent"
+          },
+          "content_match": true,
+          "saved_field": "concurrent_id",
+          "validation_errors": []
+        },
+        {
+          "step_name": "read_while_updating",
+          "step_number": 2,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 14,
+            "name": "Concurrent Test Item",
+            "description": "Item for concurrent testing",
+            "price": 50,
+            "category": "Concurrent"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "update_item_concurrently",
+          "step_number": 3,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 14,
+            "price": 55
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "verify_concurrent_update",
+          "step_number": 4,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 14,
+            "price": 55
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "cleanup_concurrent_item",
+          "step_number": 5,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 14,
+            "price": 55
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        }
+      ],
+      "total_steps": 5,
+      "passed_steps": 5
+    },
+    {
+      "scenario_name": "edge_case_scenarios",
+      "scenario_description": "Test edge cases and boundary conditions",
+      "success": true,
+      "step_results": [
+        {
+          "step_name": "create_item_with_special_characters",
+          "step_number": 1,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 15,
+            "name": "Item with Special Chars: !@#$%^&*()",
+            "description": "Testing special characters in name",
+            "price": 99.99,
+            "category": "Special"
+          },
+          "content_match": true,
+          "saved_field": "special_id",
+          "validation_errors": []
+        },
+        {
+          "step_name": "create_item_with_unicode",
+          "step_number": 2,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 16,
+            "name": "Item with Unicode: \u6d4b\u8bd5\u9879\u76ee \ud83d\ude80",
+            "description": "Testing unicode characters",
+            "price": 88.88,
+            "category": "Unicode"
+          },
+          "content_match": true,
+          "saved_field": "unicode_id",
+          "validation_errors": []
+        },
+        {
+          "step_name": "create_item_with_very_high_price",
+          "step_number": 3,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 17,
+            "name": "Expensive Item",
+            "description": "Very expensive item",
+            "price": 999999.99,
+            "category": "Luxury"
+          },
+          "content_match": true,
+          "saved_field": "expensive_id",
+          "validation_errors": []
+        },
+        {
+          "step_name": "create_item_with_decimal_precision",
+          "step_number": 4,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 18,
+            "name": "Precision Item",
+            "description": "Item with precise decimal",
+            "price": 3.14159,
+            "category": "Math"
+          },
+          "content_match": true,
+          "saved_field": "precision_id",
+          "validation_errors": []
+        },
+        {
+          "step_name": "cleanup_special_item",
+          "step_number": 5,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 15,
+            "name": "Item with Special Chars: !@#$%^&*()",
+            "description": "Testing special characters in name",
+            "price": 99.99,
+            "category": "Special"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "cleanup_unicode_item",
+          "step_number": 6,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 16,
+            "name": "Item with Unicode: \u6d4b\u8bd5\u9879\u76ee \ud83d\ude80",
+            "description": "Testing unicode characters",
+            "price": 88.88,
+            "category": "Unicode"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "cleanup_expensive_item",
+          "step_number": 7,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 17,
+            "name": "Expensive Item",
+            "description": "Very expensive item",
+            "price": 999999.99,
+            "category": "Luxury"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        },
+        {
+          "step_name": "cleanup_precision_item",
+          "step_number": 8,
+          "success": true,
+          "status_code": 200,
+          "expected_status": 200,
+          "response_data": {
+            "id": 18,
+            "name": "Precision Item",
+            "description": "Item with precise decimal",
+            "price": 3.14159,
+            "category": "Math"
+          },
+          "content_match": true,
+          "saved_field": null,
+          "validation_errors": []
+        }
+      ],
+      "total_steps": 8,
+      "passed_steps": 8
+    }
+  ],
+  "timestamp": "2025-09-14T18:05:00.969991"
 }

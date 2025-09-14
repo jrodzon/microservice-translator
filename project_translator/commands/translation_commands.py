@@ -34,13 +34,14 @@ def translate():
 @click.option('--output', '-o', required=True, help='Output project path')
 @click.option('--from-lang', '-f', required=True, help='Source programming language')
 @click.option('--to-lang', '-t', required=True, help='Target programming language')
+@click.option('--method', '-m', type=click.Choice(['mcp', 'batch']), help='Translation method (mcp or batch)')
 @click.option('--max-iterations', type=int, help='Maximum translation iterations (overrides config)')
 @click.option('--save-conversation', type=bool, help='Save conversation to file (overrides config)')
 @click.option('--conversation-file', help='Conversation file name (overrides config)')
 @click.option('--config', help='Configuration file path')
 @click.pass_context
 def translate_project(ctx, source: str, output: str, from_lang: str, to_lang: str,
-                     max_iterations: Optional[int], save_conversation: Optional[bool],
+                     method: Optional[str], max_iterations: Optional[int], save_conversation: Optional[bool],
                      conversation_file: Optional[str], config: Optional[str]):
     """Translate a project from one programming language to another."""
     
@@ -56,6 +57,8 @@ def translate_project(ctx, source: str, output: str, from_lang: str, to_lang: st
         translation_config = app_config.translation
         
         # Override config with command-line options if provided
+        if method is not None:
+            translation_config.method = method
         if max_iterations is not None:
             translation_config.max_iterations = max_iterations
         if save_conversation is not None:
@@ -91,13 +94,14 @@ def translate_project(ctx, source: str, output: str, from_lang: str, to_lang: st
             console.print(f"[red]❌ Unsupported provider: {llm_config.provider}[/red]")
             return
         
-        # Create translator
-        translator = ProjectTranslator(llm_provider, from_lang, to_lang)
+        # Create translator with specified method
+        translator = ProjectTranslator(llm_provider, from_lang, to_lang, translation_config.method)
         
         # Display configuration
         config_panel = Panel(
             f"[bold]Source Language:[/bold] {from_lang}\n"
             f"[bold]Target Language:[/bold] {to_lang}\n"
+            f"[bold]Translation Method:[/bold] {translation_config.method.upper()}\n"
             f"[bold]Provider:[/bold] {llm_config.provider}\n"
             f"[bold]Model:[/bold] {llm_config.model}\n"
             f"[bold]Max Tokens:[/bold] {llm_config.max_tokens}\n"
@@ -195,6 +199,7 @@ def list_models(provider: str):
 @click.option('--model', '-m', help='Default model')
 @click.option('--max-tokens', help='Maximum tokens per request')
 @click.option('--temperature', help='Temperature for generation')
+@click.option('--method', type=click.Choice(['mcp', 'batch']), help='Translation method')
 @click.option('--max-iterations', help='Maximum translation iterations')
 @click.option('--save-conversation/--no-save-conversation', help='Save conversation to file')
 @click.option('--conversation-file', help='Conversation file name')
@@ -203,8 +208,8 @@ def list_models(provider: str):
 @click.option('--config', '-c', default='config.json', help='Configuration file path')
 @click.pass_context
 def configure(ctx, provider: Optional[str], api_key: Optional[str], model: Optional[str], 
-              max_tokens: Optional[str], temperature: Optional[str], max_iterations: Optional[str],
-              save_conversation: Optional[bool], conversation_file: Optional[str], 
+              max_tokens: Optional[str], temperature: Optional[str], method: Optional[str],
+              max_iterations: Optional[str], save_conversation: Optional[bool], conversation_file: Optional[str], 
               conversation_dir: Optional[str], auto_save_interval: Optional[str], config: str):
     """Configure LLM provider settings in config.json."""
     
@@ -225,6 +230,8 @@ def configure(ctx, provider: Optional[str], api_key: Optional[str], model: Optio
             app_config.llm_provider.temperature = float(temperature)
         
         # Update translation configuration if provided
+        if method:
+            app_config.translation.method = method
         if max_iterations:
             app_config.translation.max_iterations = int(max_iterations)
         if save_conversation is not None:
@@ -254,6 +261,7 @@ def configure(ctx, provider: Optional[str], api_key: Optional[str], model: Optio
             f"Temperature: {llm_config.temperature}\n"
             f"Timeout: {llm_config.timeout}s\n\n"
             f"[bold]Translation Configuration:[/bold]\n"
+            f"Method: {translation_config.method.upper()}\n"
             f"Max Iterations: {translation_config.max_iterations}\n"
             f"Save Conversation: {translation_config.save_conversation}\n"
             f"Conversation File: {translation_config.conversation_file}\n"
@@ -269,66 +277,6 @@ def configure(ctx, provider: Optional[str], api_key: Optional[str], model: Optio
         
     except Exception as e:
         console.print(f"[red]❌ Error configuring provider: {str(e)}[/red]")
-
-
-@translate.command()
-@click.option('--source', '-s', required=True, help='Source project path')
-def analyze(source: str):
-    """Analyze a project for translation."""
-    
-    try:
-        from ..translation.tools.project_analysis import ProjectAnalysisTool
-        
-        source_path = Path(source).resolve()
-        if not source_path.exists():
-            console.print(f"[red]❌ Source path does not exist: {source_path}[/red]")
-            return
-        
-        analyzer = ProjectAnalysisTool(str(source_path))
-        result = analyzer.analyze_project()
-        
-        if result["success"]:
-            analysis = result["analysis"]
-            
-            # Display project analysis
-            console.print("[green]✅ Project analysis completed![/green]")
-            
-            # Project type
-            console.print(f"[bold]Project Type:[/bold] {analysis['project_type']}")
-            
-            # Main files
-            if analysis["main_files"]:
-                console.print("\n[bold]Main Files:[/bold]")
-                for file_info in analysis["main_files"]:
-                    console.print(f"  • {file_info['name']}")
-            
-            # Dependencies
-            if analysis["dependencies"]:
-                console.print("\n[bold]Dependencies:[/bold]")
-                for lang, deps in analysis["dependencies"].items():
-                    console.print(f"  {lang.title()}: {', '.join(deps[:5])}{'...' if len(deps) > 5 else ''}")
-            
-            # Docker configuration
-            docker_config = analysis["docker_config"]
-            console.print(f"\n[bold]Docker Configuration:[/bold]")
-            console.print(f"  • Has Dockerfile: {docker_config['has_dockerfile']}")
-            console.print(f"  • Has Docker Compose: {docker_config['has_docker_compose']}")
-            if docker_config["port"]:
-                console.print(f"  • Port: {docker_config['port']}")
-            if docker_config["base_image"]:
-                console.print(f"  • Base Image: {docker_config['base_image']}")
-            
-            # API endpoints
-            if analysis["api_endpoints"]:
-                console.print(f"\n[bold]API Endpoints:[/bold]")
-                for endpoint in analysis["api_endpoints"]:
-                    console.print(f"  • {endpoint['file']} ({endpoint['framework']})")
-            
-        else:
-            console.print(f"[red]❌ Analysis failed: {result.get('error', 'Unknown error')}[/red]")
-    
-    except Exception as e:
-        console.print(f"[red]❌ Error analyzing project: {str(e)}[/red]")
 
 
 @translate.command()

@@ -478,7 +478,7 @@ The application provides comprehensive logging with both console and file output
 ### Log File Management
 - **Automatic Rotation**: Log files are rotated when they reach the maximum size
 - **Backup Files**: Old log files are kept as backups (configurable count)
-- **Timestamped Logs**: Each test run creates a timestamped log file
+- **Consistent Logging**: All application logs are written to a single, consistent log file
 
 ### Logging Configuration
 ```json

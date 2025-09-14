@@ -66,6 +66,7 @@ class LLMProviderConfig:
 class TranslationConfig:
     """Translation-specific configuration settings."""
     
+    method: str = "mcp"  # "mcp" or "batch"
     max_iterations: int = 50
     save_conversation: bool = True
     conversation_file: str = "translation_conversation.json"
@@ -77,6 +78,11 @@ class TranslationConfig:
     
     def __post_init__(self):
         """Validate configuration after initialization."""
+        allowed_methods = ['mcp', 'batch']
+        if self.method.lower() not in allowed_methods:
+            raise ValueError(f'Translation method must be one of: {", ".join(allowed_methods)}')
+        self.method = self.method.lower()
+        
         if self.max_iterations <= 0:
             raise ValueError('Max iterations must be positive')
         
@@ -219,6 +225,7 @@ class Config(AppConfig):
                 "timeout": self.llm_provider.timeout
             },
             "translation": {
+                "method": self.translation.method,
                 "max_iterations": self.translation.max_iterations,
                 "save_conversation": self.translation.save_conversation,
                 "conversation_file": self.translation.conversation_file,
@@ -258,6 +265,7 @@ class Config(AppConfig):
                 "timeout": self.llm_provider.timeout
             },
             "translation": {
+                "method": self.translation.method,
                 "max_iterations": self.translation.max_iterations,
                 "save_conversation": self.translation.save_conversation,
                 "conversation_file": self.translation.conversation_file,

@@ -21,8 +21,9 @@
     "timeout": 60
   },
   "translation": {
+    "method": "batch",
     "max_iterations": 30,
-    "save_conversation": true,
+    "save_conversation": false,
     "conversation_file": "translation_conversation.json",
     "conversation_dir": "conversations",
     "auto_save_interval": 3,
