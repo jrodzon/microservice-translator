@@ -305,7 +305,7 @@ class BatchProjectTranslator:
                 "source_path": str(source_path),
                 "output_path": str(output_path),
                 "start_time": datetime.now().isoformat(),
-                "batch_provider": self.batch_provider.get_provider_info(),
+                "batch_provider": self.llm_provider.get_provider_info(),
                 "translation_stats": self.translation_stats
             },
             "conversation": []

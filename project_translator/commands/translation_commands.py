@@ -16,7 +16,7 @@ from rich.table import Table
 from rich.panel import Panel
 
 from ..translation import ProjectTranslator
-from ..translation.llm_providers import OpenAIProvider
+from ..translation.llm_providers import OpenAIProvider, AnthropicProvider
 from ..utils import get_logger, Config
 
 console = Console()
@@ -87,6 +87,13 @@ def translate_project(ctx, source: str, output: str, from_lang: str, to_lang: st
                 model=llm_config.model,
                 api_key=llm_config.api_key,
                 base_url=llm_config.base_url,
+                max_tokens=llm_config.max_tokens,
+                temperature=llm_config.temperature
+            )
+        elif llm_config.provider.lower() == 'anthropic':
+            llm_provider = AnthropicProvider(
+                model=llm_config.model,
+                api_key=llm_config.api_key,
                 max_tokens=llm_config.max_tokens,
                 temperature=llm_config.temperature
             )
@@ -174,6 +181,20 @@ def list_models(provider: str):
     try:
         if provider.lower() == 'openai':
             provider_instance = OpenAIProvider()
+            models = provider_instance.get_available_models()
+            
+            models_table = Table(title=f"Available {provider.title()} Models")
+            models_table.add_column("Model Name", style="cyan")
+            models_table.add_column("Description", style="green")
+            
+            for model in models:
+                description = provider_instance.get_model_description(model)
+                models_table.add_row(model, description)
+            
+            console.print(models_table)
+            
+        elif provider.lower() == 'anthropic':
+            provider_instance = AnthropicProvider()
             models = provider_instance.get_available_models()
             
             models_table = Table(title=f"Available {provider.title()} Models")
@@ -295,8 +316,12 @@ def providers():
     except ImportError:
         providers_table.add_row("OpenAI", "❌ Not Installed", "Install with: pip install openai")
     
-    # Anthropic (placeholder)
-    providers_table.add_row("Anthropic", "🚧 Coming Soon", "Claude models")
+    # Anthropic
+    try:
+        import anthropic
+        providers_table.add_row("Anthropic", "✅ Available", "Claude 3.5 Opus, Claude 3.5 Sonnet, Claude 3.5 Haiku")
+    except ImportError:
+        providers_table.add_row("Anthropic", "❌ Not Installed", "Install with: pip install anthropic")
     
     # Local (placeholder)
     providers_table.add_row("Local", "🚧 Coming Soon", "Ollama, local models")

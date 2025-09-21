@@ -9,6 +9,7 @@ import requests
 from typing import Dict, List, Any, Optional
 from rich.console import Console
 from ..models import TestStep
+from ..utils import get_logger
 
 console = Console()
 
@@ -107,6 +108,8 @@ class RequestExecutor:
             Response object or None if error
         """
         try:
+            logger = get_logger("request_executor")
+            logger.debug(f"Making {method} request to {url} with headers {headers} and body {body}")
             if method.upper() == "GET":
                 return requests.get(url, headers=headers, timeout=10)
             elif method.upper() == "POST":

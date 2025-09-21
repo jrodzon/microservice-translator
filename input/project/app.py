@@ -3,13 +3,11 @@
 Simple CRUD REST API service for testing translation capabilities.
 """
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional
+from fastapi import FastAPI, HTTPException, Response, Request
+from pydantic import BaseModel, ValidationError
+from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
-
-# Database setup
-DATABASE_URL = "sqlite:///./test.db"
+import json
 
 class Item(BaseModel):
     id: Optional[int] = None
@@ -27,6 +25,31 @@ class ItemUpdate(BaseModel):
 # In-memory storage for simplicity
 items_db = []
 next_id = 1
+
+# Explicit validation functions for return codes
+def validate_item_data(data: Dict[str, Any]) -> tuple[bool, str]:
+    """Validate item data and return (is_valid, error_message)."""
+    if not data.get("name"):
+        return False, "name field is required"
+    if "price" not in data:
+        return False, "price field is required"
+    if not data.get("category"):
+        return False, "category field is required"
+    return True, ""
+
+def create_validation_error_response(message: str) -> HTTPException:
+    """Create a 422 validation error response."""
+    return HTTPException(
+        status_code=422, 
+        detail={"error": "Validation Error", "message": message}
+    )
+
+def create_not_found_error_response() -> HTTPException:
+    """Create a 404 not found error response."""
+    return HTTPException(
+        status_code=404, 
+        detail={"error": "Not Found", "message": "Item not found"}
+    )
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -64,53 +87,78 @@ async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "service": "crud-api"}
 
-@app.get("/items", response_model=List[Item])
+@app.get("/items")
 async def get_all_items():
     """Get all items."""
     return items_db
 
-@app.get("/items/{item_id}", response_model=Item)
+@app.get("/items/{item_id}")
 async def get_item(item_id: int):
     """Get a specific item by ID."""
     for item in items_db:
         if item["id"] == item_id:
             return item
-    raise HTTPException(status_code=404, detail="Item not found")
+    raise create_not_found_error_response()
 
-@app.post("/items", response_model=Item)
-async def create_item(item: Item):
+@app.post("/items")
+async def create_item(request: Request):
     """Create a new item."""
-    global next_id
-    new_item = {
-        "id": next_id,
-        "name": item.name,
-        "description": item.description,
-        "price": item.price,
-        "category": item.category
-    }
-    items_db.append(new_item)
-    next_id += 1
-    return new_item
+    try:
+        # Parse JSON body manually to handle validation explicitly
+        body = await request.json()
+        
+        # Explicit validation
+        is_valid, error_message = validate_item_data(body)
+        if not is_valid:
+            raise create_validation_error_response(error_message)
+        
+        # Create item with explicit success response
+        global next_id
+        new_item = {
+            "id": next_id,
+            "name": body["name"],
+            "description": body.get("description"),
+            "price": body["price"],
+            "category": body["category"]
+        }
+        items_db.append(new_item)
+        next_id += 1
+        return new_item
+        
+    except json.JSONDecodeError:
+        raise create_validation_error_response("Invalid JSON format")
+    except Exception as e:
+        raise create_validation_error_response(f"Unexpected error: {str(e)}")
 
-@app.put("/items/{item_id}", response_model=Item)
-async def update_item(item_id: int, item_update: ItemUpdate):
+@app.put("/items/{item_id}")
+async def update_item(item_id: int, request: Request):
     """Update an existing item."""
+    try:
+        # Parse JSON body manually
+        body = await request.json()
+    except json.JSONDecodeError:
+        raise create_validation_error_response("Invalid JSON format")
+    except Exception as e:
+        raise create_validation_error_response(f"Unexpected error: {str(e)}")
+    
+    # Check if item exists
     for i, item in enumerate(items_db):
         if item["id"] == item_id:
             # Update only provided fields
-            if item_update.name is not None:
-                item["name"] = item_update.name
-            if item_update.description is not None:
-                item["description"] = item_update.description
-            if item_update.price is not None:
-                item["price"] = item_update.price
-            if item_update.category is not None:
-                item["category"] = item_update.category
+            if "name" in body:
+                item["name"] = body["name"]
+            if "description" in body:
+                item["description"] = body["description"]
+            if "price" in body:
+                item["price"] = body["price"]
+            if "category" in body:
+                item["category"] = body["category"]
             
             items_db[i] = item
             return item
     
-    raise HTTPException(status_code=404, detail="Item not found")
+    # Item not found - return 404
+    raise create_not_found_error_response()
 
 @app.delete("/items/{item_id}")
 async def delete_item(item_id: int):
@@ -118,9 +166,13 @@ async def delete_item(item_id: int):
     for i, item in enumerate(items_db):
         if item["id"] == item_id:
             deleted_item = items_db.pop(i)
-            return {"message": f"Item {item_id} deleted successfully", "deleted_item": deleted_item}
+            response_data = {
+                "message": f"Item {item_id} deleted successfully", 
+                "deleted_item": deleted_item
+            }
+            return response_data
     
-    raise HTTPException(status_code=404, detail="Item not found")
+    raise create_not_found_error_response()
 
 @app.get("/items/category/{category}")
 async def get_items_by_category(category: str):

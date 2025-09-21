@@ -143,3 +143,6 @@ Thumbs.db
 test_results.json
 logs/
 output/project/
+
+# Conversations
+conversations/

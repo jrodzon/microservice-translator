@@ -37,14 +37,12 @@ class TranslatedFile:
     """Represents a translated file."""
     path: str
     content: str
-    original_path: Optional[str] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format."""
         return {
             "path": self.path,
-            "content": self.content,
-            "original_path": self.original_path
+            "content": self.content
         }
 
 
@@ -195,6 +193,7 @@ CRITICAL REQUIREMENTS:
 3. The Dockerfile must use port 8000
 4. All functionalities must be preserved
 5. The project structure should be adapted to {target_lang} conventions
+6. The project must be able to be built and run with Docker without any other tools
 
 RESPONSE FORMAT:
 You must respond with a JSON object containing:
@@ -203,7 +202,7 @@ You must respond with a JSON object containing:
         {{
             "path": "relative/path/to/file",
             "content": "file content here",
-            "original_path": "original/path/if/renamed"
+            "original_path": "original/path/to/file"
         }}
     ],
     "translation_summary": "Brief summary of what was translated",
@@ -218,6 +217,7 @@ TRANSLATION GUIDELINES:
 5. Preserve all configuration settings
 6. Update documentation if present
 7. Ensure the project can be built and run with Docker
+8. If the target language needs to be compiled, consider using a multi-stage build Dockerfile
 
 IMPORTANT: Respond ONLY with the JSON object. Do not include any other text or explanations."""
         
@@ -249,8 +249,7 @@ IMPORTANT: Respond ONLY with the JSON object. Do not include any other text or e
             for file_data in response_data.get('translated_files', []):
                 translated_file = TranslatedFile(
                     path=file_data['path'],
-                    content=file_data['content'],
-                    original_path=file_data.get('original_path')
+                    content=file_data['content']
                 )
                 translated_files.append(translated_file)
             
@@ -273,9 +272,12 @@ IMPORTANT: Respond ONLY with the JSON object. Do not include any other text or e
         Parse the malformed JSON by extracting fields manually.
         
         The JSON string contains backticks instead of proper JSON quotes for content fields.
-        We need to find the exact boundaries: "content": `...content...`, "original_path"
+        We need to find the exact boundaries: "content": `...content...`
         This approach correctly handles backticks within the content itself.
         """
+
+        with open("malformed_json.json", "w") as f:
+            f.write(json_string)
 
         logger.debug(f"Parsing malformed JSON: {json_string}")
         result = {}
@@ -284,39 +286,36 @@ IMPORTANT: Respond ONLY with the JSON object. Do not include any other text or e
         translated_files = []
         
         # Find all file objects by looking for the specific pattern:
-        # "content": `...content...`, "original_path"
+        # "content": `...content...`
         # We'll use a more robust approach by finding the start and end markers
         
         # Find all "content": ` patterns
         content_start_pattern = r'"content":\s*(`|")'
         content_starts = [m.start() for m in re.finditer(content_start_pattern, json_string)]
         
-        # Find all `, "original_path" patterns  
+        # Find all ` patterns  
         content_end_pattern = r'(`|")\s*,\s*"original_path"'
         content_ends = [m.start() for m in re.finditer(content_end_pattern, json_string)]
         
-        # Find all path and original_path pairs
+        # Find all path pairs
         path_pattern = r'"path":\s*"([^"]+)"'
-        original_path_pattern = r'"original_path":\s*"([^"]+)"'
         
         paths = re.findall(path_pattern, json_string)
-        original_paths = re.findall(original_path_pattern, json_string)
         
         # Extract content between the markers
         matches = []
-        for i, (path, original_path) in enumerate(zip(paths, original_paths)):
+        for i, path in enumerate(paths):
             if i < len(content_starts) and i < len(content_ends):
                 start_pos = content_starts[i] + len(re.search(content_start_pattern, json_string[content_starts[i]:]).group())
                 end_pos = content_ends[i]
                 content = json_string[start_pos:end_pos]
-                matches.append((path, content, original_path))
+                matches.append((path, content))
         
         
         for match in matches:
             file_obj = {
                 "path": match[0],
-                "content": match[1].strip(),
-                "original_path": match[2]
+                "content": self.process_file_content(match[1])
             }
             translated_files.append(file_obj)
         
@@ -335,6 +334,10 @@ IMPORTANT: Respond ONLY with the JSON object. Do not include any other text or e
             result["warnings"] = [warnings_match.group(1)]
         
         return result
+    
+    def process_file_content(self, content: str) -> str:
+        """Process the file content to remove the backticks and quotes."""
+        return content.replace("\\n", "\n").replace("\\\"", "\"").replace("\\'", "'").replace("\\`", "`").replace("\\\\", "\\")
     
     def validate_response(self, response: BatchTranslationResponse) -> List[str]:
         """
