@@ -8,7 +8,7 @@ in one request to reduce token usage and improve efficiency.
 import json
 import time
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
@@ -16,6 +16,7 @@ from .llm_providers.base import BaseLLMProvider
 from .protocols.batch import BatchTranslationProtocol, BatchTranslationRequest, BatchTranslationResponse
 from .protocols.mcp import MCPMessage, MCPMessageType
 from .tools.file_operations import FileOperationsTool
+from .retry_mechanism import RetryMechanism
 from project_translator.utils import get_logger, error_with_stacktrace
 
 console = Console()
@@ -122,9 +123,11 @@ class BatchProjectTranslator:
                          auto_save_interval: int = 5,
                          retry_on_error: bool = True,
                          max_retries: int = 3,
-                         retry_delay: float = 1.0) -> Dict[str, Any]:
+                         retry_delay: float = 1.0,
+                         test_cases_path: Optional[str] = None,
+                         enable_auto_testing: bool = True) -> Dict[str, Any]:
         """
-        Translate a project using batch translation.
+        Translate a project using batch translation with optional automatic testing and retry.
         
         Args:
             source_path: Path to source project
@@ -134,9 +137,11 @@ class BatchProjectTranslator:
             conversation_file: Name of conversation file
             conversation_dir: Directory to save conversations
             auto_save_interval: Auto-save interval (not used in batch mode)
-            retry_on_error: Whether to retry on errors (not used in batch mode)
-            max_retries: Maximum number of retries (not used in batch mode)
+            retry_on_error: Whether to retry on errors
+            max_retries: Maximum number of retries
             retry_delay: Delay between retries (not used in batch mode)
+            test_cases_path: Path to test cases file for automatic testing
+            enable_auto_testing: Whether to enable automatic testing and retry
             
         Returns:
             Dictionary with translation results
@@ -148,91 +153,125 @@ class BatchProjectTranslator:
             console.print(f"[blue]📁 Source: {source_path}[/blue]")
             console.print(f"[blue]📁 Output: {output_path}[/blue]")
             
-            # Initialize tools
-            file_ops = FileOperationsTool(source_path, output_path)
-            
             # Validate LLM provider
             if not self.llm_provider.validate_configuration():
                 raise ValueError("LLM provider configuration is invalid")
             
-            # Perform batch translation
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                TimeElapsedColumn(),
-                console=console
-            ) as progress:
-                task = progress.add_task("Translating project...", total=None)
+            # Check if we should use retry mechanism with testing
+            if enable_auto_testing and retry_on_error and test_cases_path:
+                console.print(f"[blue]🔄 Using retry mechanism with automatic testing[/blue]")
+                console.print(f"[blue]🧪 Test cases: {test_cases_path}[/blue]")
+                console.print(f"[blue]🔄 Max retries: {max_retries}[/blue]")
                 
-                # Create batch translation request
-                batch_request = self.batch_protocol.create_translation_request(
-                    source_path, self.source_lang, self.target_lang
+                # Use retry mechanism
+                retry_mechanism = RetryMechanism(
+                    self.llm_provider, 
+                    self.source_lang, 
+                    self.target_lang,
+                    max_retries=max_retries,
+                    test_cases_path=test_cases_path
                 )
                 
-                self.translation_stats["files_read"] = len(batch_request.project_files)
-                
-                # Send single request to LLM
-                response_text = self._send_batch_request(batch_request)
-                
-                # Parse response
-                batch_response = self.batch_protocol.parse_translation_response(response_text)
-            
-            # Write translated files
-            console.print(f"[blue]📝 Writing {len(batch_response.translated_files)} translated files...[/blue]")
-            
-            written_files = 0
-            for translated_file in batch_response.translated_files:
-                try:
-                    # Use the path from translation
-                    output_file_path = Path(output_path) / translated_file.path
-                    
-                    # Ensure parent directory exists
-                    output_file_path.parent.mkdir(parents=True, exist_ok=True)
-                    
-                    # Write file
-                    with open(output_file_path, 'w', encoding='utf-8') as f:
-                        f.write(translated_file.content)
-                    
-                    written_files += 1
-                    console.print(f"[green]✅ Written: {output_file_path.relative_to(Path(output_path))}[/green]")
-                    
-                except Exception as e:
-                    error_msg = f"Error writing file {translated_file.path}: {str(e)}"
-                    error_with_stacktrace(error_msg, e)
-                    console.print(f"[red]❌ {error_msg}[/red]")
-            
-            self.translation_stats["files_written"] = written_files
-            self.translation_stats["end_time"] = time.time()
-            
-            # Create result
-            result = {
-                "success": True,
-                "message": "Batch translation completed successfully",
-                "translation_summary": batch_response.translation_summary,
-                "warnings": batch_response.warnings,
-                "files_translated": len(batch_response.translated_files),
-                "files_written": written_files,
-                "stats": self.translation_stats
-            }
-            
-            # Save conversation if enabled
-            if save_conversation:
-                conversation_path = self._setup_conversation_saving(
-                    conversation_dir, conversation_file, source_path, output_path
+                result = retry_mechanism.translate_with_retry(
+                    source_path, 
+                    output_path,
+                    save_conversation=save_conversation,
+                    conversation_file=conversation_file,
+                    conversation_dir=conversation_dir
                 )
-                self.save_conversation(conversation_path, batch_response, result)
-                console.print(f"[green]💾 Conversation saved to: {conversation_path}[/green]")
+                
+                # Update stats
+                self.translation_stats["end_time"] = time.time()
+                if "stats" not in result:
+                    result["stats"] = self.translation_stats
+                
+                return result
             
-            console.print(f"[green]✅ Batch translation completed successfully![/green]")
-            console.print(f"[green]📊 Files processed: {self.translation_stats['files_read']} read, {written_files} written[/green]")
-            console.print(f"[green]📝 Summary: {batch_response.translation_summary}[/green]")
-            
-            if batch_response.warnings:
-                console.print(f"[yellow]⚠️  Warnings: {len(batch_response.warnings)} warnings generated[/yellow]")
-                for warning in batch_response.warnings:
-                    console.print(f"[yellow]   - {warning}[/yellow]")
-            
-            return result
+            else:
+                # Use original batch translation without retry mechanism
+                console.print(f"[blue]📝 Using standard batch translation[/blue]")
+                
+                # Initialize tools
+                file_ops = FileOperationsTool(source_path, output_path)
+                
+                # Perform batch translation
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    TimeElapsedColumn(),
+                    console=console
+                ) as progress:
+                    task = progress.add_task("Translating project...", total=None)
+                    
+                    # Create batch translation request
+                    batch_request = self.batch_protocol.create_translation_request(
+                        source_path, self.source_lang, self.target_lang
+                    )
+                    
+                    self.translation_stats["files_read"] = len(batch_request.project_files)
+                    
+                    # Send single request to LLM
+                    response_text = self._send_batch_request(batch_request)
+                    
+                    # Parse response
+                    batch_response = self.batch_protocol.parse_translation_response(response_text)
+                
+                # Write translated files
+                console.print(f"[blue]📝 Writing {len(batch_response.translated_files)} translated files...[/blue]")
+                
+                written_files = 0
+                for translated_file in batch_response.translated_files:
+                    try:
+                        # Use the path from translation
+                        output_file_path = Path(output_path) / translated_file.path
+                        
+                        # Ensure parent directory exists
+                        output_file_path.parent.mkdir(parents=True, exist_ok=True)
+                        
+                        # Write file
+                        with open(output_file_path, 'w', encoding='utf-8') as f:
+                            f.write(translated_file.content)
+                        
+                        written_files += 1
+                        console.print(f"[green]✅ Written: {output_file_path.relative_to(Path(output_path))}[/green]")
+                        
+                    except Exception as e:
+                        error_msg = f"Error writing file {translated_file.path}: {str(e)}"
+                        error_with_stacktrace(error_msg, e)
+                        console.print(f"[red]❌ {error_msg}[/red]")
+                
+                self.translation_stats["files_written"] = written_files
+                self.translation_stats["end_time"] = time.time()
+                
+                # Create result
+                result = {
+                    "success": True,
+                    "message": "Batch translation completed successfully",
+                    "translation_summary": batch_response.translation_summary,
+                    "warnings": batch_response.warnings,
+                    "files_translated": len(batch_response.translated_files),
+                    "files_written": written_files,
+                    "stats": self.translation_stats
+                }
+                
+                # Save conversation if enabled
+                if save_conversation:
+                    conversation_path = self._setup_conversation_saving(
+                        conversation_dir, conversation_file, source_path, output_path
+                    )
+                    self.save_conversation(conversation_path, batch_response, result)
+                    console.print(f"[green]💾 Conversation saved to: {conversation_path}[/green]")
+                
+                console.print(f"[green]✅ Batch translation completed successfully![/green]")
+                console.print(f"[green]📊 Files processed: {self.translation_stats['files_read']} read, {written_files} written[/green]")
+                console.print(f"[green]📝 Summary: {batch_response.translation_summary}[/green]")
+                
+                if batch_response.warnings:
+                    console.print(f"[yellow]⚠️  Warnings: {len(batch_response.warnings)} warnings generated[/yellow]")
+                    for warning in batch_response.warnings:
+                        console.print(f"[yellow]   - {warning}[/yellow]")
+                
+                return result
             
         except Exception as e:
             error_msg = f"Batch translation failed: {str(e)}"

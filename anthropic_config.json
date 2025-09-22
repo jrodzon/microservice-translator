@@ -12,15 +12,18 @@
     "backup_count": 5
   },
   "llm_provider": {
-    "provider": "openai",
-    "model": "gpt-5",
-    "api_key": "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",
-    "base_url": null
+    "provider": "anthropic",
+    "model": "claude-opus-4-20250514",
+    "api_key": "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",
+    "base_url": null,
+    "max_tokens": 32000,
+    "temperature": 0.1,
+    "timeout": 600
   },
   "translation": {
     "method": "batch",
     "max_iterations": 30,
-    "save_conversation": false,
+    "save_conversation": true,
     "conversation_file": "translation_conversation.json",
     "conversation_dir": "conversations",
     "auto_save_interval": 3,

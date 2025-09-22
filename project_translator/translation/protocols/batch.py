@@ -276,9 +276,6 @@ IMPORTANT: Respond ONLY with the JSON object. Do not include any other text or e
         This approach correctly handles backticks within the content itself.
         """
 
-        with open("malformed_json.json", "w") as f:
-            f.write(json_string)
-
         logger.debug(f"Parsing malformed JSON: {json_string}")
         result = {}
         

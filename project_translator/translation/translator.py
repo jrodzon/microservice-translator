@@ -5,7 +5,7 @@ This module implements the core translation engine that routes
 translation requests to the appropriate translator based on the method.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from rich.console import Console
 
 from .llm_providers.base import BaseLLMProvider
@@ -52,7 +52,9 @@ class ProjectTranslator:
                          auto_save_interval: int = 5,
                          retry_on_error: bool = True,
                          max_retries: int = 3,
-                         retry_delay: float = 1.0) -> Dict[str, Any]:
+                         retry_delay: float = 1.0,
+                         test_cases_path: Optional[str] = None,
+                         enable_auto_testing: bool = True) -> Dict[str, Any]:
         """
         Translate a project from source to target language.
         
@@ -67,6 +69,8 @@ class ProjectTranslator:
             retry_on_error: Whether to retry on errors
             max_retries: Maximum number of retries
             retry_delay: Delay between retries in seconds
+            test_cases_path: Path to test cases file for automatic testing
+            enable_auto_testing: Whether to enable automatic testing and retry
             
         Returns:
             Dictionary with translation results
@@ -75,7 +79,7 @@ class ProjectTranslator:
         return self.translator.translate_project(
             source_path, output_path, max_iterations, save_conversation,
             conversation_file, conversation_dir, auto_save_interval,
-            retry_on_error, max_retries, retry_delay
+            retry_on_error, max_retries, retry_delay, test_cases_path, enable_auto_testing
         )
     
     def get_translation_summary(self) -> Dict[str, Any]:

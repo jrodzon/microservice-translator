@@ -16,12 +16,12 @@
           "status_code": 200,
           "expected_status": 200,
           "response_data": {
-            "endpoints": {
-              "health": "/health",
-              "items": "/items"
-            },
             "message": "Test CRUD Service is running",
-            "version": "1.0.0"
+            "version": "1.0.0",
+            "endpoints": {
+              "items": "/items",
+              "health": "/health"
+            }
           },
           "content_match": true,
           "saved_field": null,
@@ -34,8 +34,8 @@
           "status_code": 200,
           "expected_status": 200,
           "response_data": {
-            "service": "crud-api",
-            "status": "healthy"
+            "status": "healthy",
+            "service": "crud-api"
           },
           "content_match": true,
           "saved_field": null,
@@ -339,14 +339,14 @@
           "status_code": 200,
           "expected_status": 200,
           "response_data": {
+            "message": "Item 4 deleted successfully",
             "deleted_item": {
               "id": 4,
               "name": "Premium Smartphone",
               "description": "Top-tier smartphone model",
               "price": 799.99,
               "category": "Premium Electronics"
-            },
-            "message": "Item 4 deleted successfully"
+            }
           },
           "content_match": true,
           "saved_field": null,
@@ -402,7 +402,7 @@
           "response_data": {
             "detail": {
               "error": "Validation Error",
-              "message": "name field is required"
+              "message": "Unexpected error: 422: {'error': 'Validation Error', 'message': 'name field is required'}"
             }
           },
           "content_match": true,
@@ -418,7 +418,7 @@
           "response_data": {
             "detail": {
               "error": "Validation Error",
-              "message": "price field is required"
+              "message": "Unexpected error: 422: {'error': 'Validation Error', 'message': 'price field is required'}"
             }
           },
           "content_match": true,
@@ -434,7 +434,7 @@
           "response_data": {
             "detail": {
               "error": "Validation Error",
-              "message": "category field is required"
+              "message": "Unexpected error: 422: {'error': 'Validation Error', 'message': 'category field is required'}"
             }
           },
           "content_match": true,
@@ -655,14 +655,14 @@
           "status_code": 200,
           "expected_status": 200,
           "response_data": {
+            "message": "Item 5 deleted successfully",
             "deleted_item": {
               "id": 5,
               "name": "Free Item",
               "description": "Item with zero price",
               "price": 0.0,
               "category": "Free"
-            },
-            "message": "Item 5 deleted successfully"
+            }
           },
           "content_match": true,
           "saved_field": null,
@@ -675,14 +675,14 @@
           "status_code": 200,
           "expected_status": 200,
           "response_data": {
+            "message": "Item 6 deleted successfully",
             "deleted_item": {
               "id": 6,
               "name": "Negative Price Item",
               "description": "Item with negative price",
               "price": -10.0,
               "category": "Test"
-            },
-            "message": "Item 6 deleted successfully"
+            }
           },
           "content_match": true,
           "saved_field": null,
@@ -695,14 +695,14 @@
           "status_code": 200,
           "expected_status": 200,
           "response_data": {
+            "message": "Item 7 deleted successfully",
             "deleted_item": {
               "id": 7,
               "name": "This is a very long item name that might test the system's handling of longer strings and see how it behaves with extended text content",
               "description": "Item with very long name",
               "price": 1.0,
               "category": "Long Name Test"
-            },
-            "message": "Item 7 deleted successfully"
+            }
           },
           "content_match": true,
           "saved_field": null,
@@ -862,14 +862,14 @@
           "status_code": 200,
           "expected_status": 200,
           "response_data": {
+            "message": "Item 8 deleted successfully",
             "deleted_item": {
               "id": 8,
               "name": "Bulk Item 1",
               "description": "First bulk test item",
               "price": 10.99,
               "category": "Bulk"
-            },
-            "message": "Item 8 deleted successfully"
+            }
           },
           "content_match": true,
           "saved_field": null,
@@ -882,14 +882,14 @@
           "status_code": 200,
           "expected_status": 200,
           "response_data": {
+            "message": "Item 9 deleted successfully",
             "deleted_item": {
               "id": 9,
               "name": "Bulk Item 2",
               "description": "Second bulk test item",
               "price": 20.99,
               "category": "Bulk"
-            },
-            "message": "Item 9 deleted successfully"
+            }
           },
           "content_match": true,
           "saved_field": null,
@@ -902,14 +902,14 @@
           "status_code": 200,
           "expected_status": 200,
           "response_data": {
+            "message": "Item 10 deleted successfully",
             "deleted_item": {
               "id": 10,
               "name": "Bulk Item 3",
               "description": "Third bulk test item",
               "price": 30.99,
               "category": "Bulk"
-            },
-            "message": "Item 10 deleted successfully"
+            }
           },
           "content_match": true,
           "saved_field": null,
@@ -1010,14 +1010,14 @@
           "status_code": 200,
           "expected_status": 200,
           "response_data": {
+            "message": "Item 11 deleted successfully",
             "deleted_item": {
               "id": 11,
               "name": "Concurrent Test Item",
               "description": "Item for concurrent testing",
               "price": 55.0,
               "category": "Concurrent"
-            },
-            "message": "Item 11 deleted successfully"
+            }
           },
           "content_match": true,
           "saved_field": null,
@@ -1107,14 +1107,14 @@
           "status_code": 200,
           "expected_status": 200,
           "response_data": {
+            "message": "Item 12 deleted successfully",
             "deleted_item": {
               "id": 12,
               "name": "Item with Special Chars: !@#$%^&*()",
               "description": "Testing special characters in name",
               "price": 99.99,
               "category": "Special"
-            },
-            "message": "Item 12 deleted successfully"
+            }
           },
           "content_match": true,
           "saved_field": null,
@@ -1127,14 +1127,14 @@
           "status_code": 200,
           "expected_status": 200,
           "response_data": {
+            "message": "Item 13 deleted successfully",
             "deleted_item": {
               "id": 13,
               "name": "Item with Unicode: \u6d4b\u8bd5\u9879\u76ee \ud83d\ude80",
               "description": "Testing unicode characters",
               "price": 88.88,
               "category": "Unicode"
-            },
-            "message": "Item 13 deleted successfully"
+            }
           },
           "content_match": true,
           "saved_field": null,
@@ -1147,14 +1147,14 @@
           "status_code": 200,
           "expected_status": 200,
           "response_data": {
+            "message": "Item 14 deleted successfully",
             "deleted_item": {
               "id": 14,
               "name": "Expensive Item",
               "description": "Very expensive item",
               "price": 999999.99,
               "category": "Luxury"
-            },
-            "message": "Item 14 deleted successfully"
+            }
           },
           "content_match": true,
           "saved_field": null,
@@ -1167,14 +1167,14 @@
           "status_code": 200,
           "expected_status": 200,
           "response_data": {
+            "message": "Item 15 deleted successfully",
             "deleted_item": {
               "id": 15,
               "name": "Precision Item",
               "description": "Item with precise decimal",
               "price": 3.14159,
               "category": "Math"
-            },
-            "message": "Item 15 deleted successfully"
+            }
           },
           "content_match": true,
           "saved_field": null,
@@ -1185,5 +1185,5 @@
       "passed_steps": 8
     }
   ],
-  "timestamp": "2025-09-22T00:04:05.029425"
+  "timestamp": "2025-09-22T04:56:47.359041"
 }

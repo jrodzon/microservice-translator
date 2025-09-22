@@ -75,6 +75,8 @@ class TranslationConfig:
     retry_on_error: bool = True
     max_retries: int = 3
     retry_delay: float = 1.0  # seconds
+    enable_auto_testing: bool = True
+    test_cases_path: Optional[str] = None
     
     def __post_init__(self):
         """Validate configuration after initialization."""
@@ -233,7 +235,9 @@ class Config(AppConfig):
                 "auto_save_interval": self.translation.auto_save_interval,
                 "retry_on_error": self.translation.retry_on_error,
                 "max_retries": self.translation.max_retries,
-                "retry_delay": self.translation.retry_delay
+                "retry_delay": self.translation.retry_delay,
+                "enable_auto_testing": self.translation.enable_auto_testing,
+                "test_cases_path": self.translation.test_cases_path
             }
         }
         
@@ -273,6 +277,8 @@ class Config(AppConfig):
                 "auto_save_interval": self.translation.auto_save_interval,
                 "retry_on_error": self.translation.retry_on_error,
                 "max_retries": self.translation.max_retries,
-                "retry_delay": self.translation.retry_delay
+                "retry_delay": self.translation.retry_delay,
+                "enable_auto_testing": self.translation.enable_auto_testing,
+                "test_cases_path": self.translation.test_cases_path
             }
         }

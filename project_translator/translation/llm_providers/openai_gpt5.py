@@ -24,7 +24,7 @@ console = Console()
 logger = get_logger("openai_provider")
 
 
-class OpenAIProvider(BaseLLMProvider):
+class OpenAIGPT5Provider(BaseLLMProvider):
     """OpenAI API provider implementation."""
     
     def __init__(self, model: str = "gpt-5", api_key: Optional[str] = None, **kwargs):
@@ -131,6 +131,8 @@ class OpenAIProvider(BaseLLMProvider):
             # Handle different response types from Responses API
             if hasattr(response, 'output') and isinstance(response.output, list) and response.output:
                 for output_item in response.output:
+                    if output_item.type == "reasoning":
+                        continue
                     if isinstance(output_item, ResponseOutputMessage):
                         response_messages.append(self._convert_openai_output_message_to_mcp_message(output_item))
                     elif isinstance(output_item, ResponseFunctionToolCall):

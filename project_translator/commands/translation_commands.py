@@ -16,7 +16,7 @@ from rich.table import Table
 from rich.panel import Panel
 
 from ..translation import ProjectTranslator
-from ..translation.llm_providers import OpenAIProvider, AnthropicProvider
+from ..translation.llm_providers import OpenAIProvider, AnthropicProvider, OpenAIGPT5Provider
 from ..utils import get_logger, Config
 
 console = Console()
@@ -38,11 +38,12 @@ def translate():
 @click.option('--max-iterations', type=int, help='Maximum translation iterations (overrides config)')
 @click.option('--save-conversation', type=bool, help='Save conversation to file (overrides config)')
 @click.option('--conversation-file', help='Conversation file name (overrides config)')
+@click.option('--test-cases', help='Path to test cases file for automatic testing (overrides config)')
 @click.option('--config', help='Configuration file path')
 @click.pass_context
 def translate_project(ctx, source: str, output: str, from_lang: str, to_lang: str,
                      method: Optional[str], max_iterations: Optional[int], save_conversation: Optional[bool],
-                     conversation_file: Optional[str], config: Optional[str]):
+                     conversation_file: Optional[str], test_cases: Optional[str], config: Optional[str]):
     """Translate a project from one programming language to another."""
     
     try:
@@ -65,6 +66,8 @@ def translate_project(ctx, source: str, output: str, from_lang: str, to_lang: st
             translation_config.save_conversation = save_conversation
         if conversation_file is not None:
             translation_config.conversation_file = conversation_file
+        if test_cases is not None:
+            translation_config.test_cases_path = test_cases
         
         # Validate API key
         if not llm_config.api_key:
@@ -82,8 +85,16 @@ def translate_project(ctx, source: str, output: str, from_lang: str, to_lang: st
         output_path.mkdir(parents=True, exist_ok=True)
         
         # Initialize LLM provider based on configuration
-        if llm_config.provider.lower() == 'openai':
+        if llm_config.model.lower() == 'gpt-3.5-turbo':
             llm_provider = OpenAIProvider(
+                model=llm_config.model,
+                api_key=llm_config.api_key,
+                base_url=llm_config.base_url,
+                max_tokens=llm_config.max_tokens,
+                temperature=llm_config.temperature
+            )
+        elif llm_config.model.lower() == 'gpt-5':
+            llm_provider = OpenAIGPT5Provider(
                 model=llm_config.model,
                 api_key=llm_config.api_key,
                 base_url=llm_config.base_url,
@@ -116,6 +127,8 @@ def translate_project(ctx, source: str, output: str, from_lang: str, to_lang: st
             f"[bold]Max Iterations:[/bold] {translation_config.max_iterations}\n"
             f"[bold]Save Conversation:[/bold] {translation_config.save_conversation}\n"
             f"[bold]Conversation File:[/bold] {translation_config.conversation_file}\n"
+            f"[bold]Auto Testing:[/bold] {translation_config.enable_auto_testing}\n"
+            f"[bold]Test Cases:[/bold] {translation_config.test_cases_path or 'None'}\n"
             f"[bold]Source Path:[/bold] {source_path}\n"
             f"[bold]Output Path:[/bold] {output_path}",
             title="Translation Configuration",
@@ -134,7 +147,9 @@ def translate_project(ctx, source: str, output: str, from_lang: str, to_lang: st
             auto_save_interval=translation_config.auto_save_interval,
             retry_on_error=translation_config.retry_on_error,
             max_retries=translation_config.max_retries,
-            retry_delay=translation_config.retry_delay
+            retry_delay=translation_config.retry_delay,
+            test_cases_path=translation_config.test_cases_path,
+            enable_auto_testing=translation_config.enable_auto_testing
         )
         
         # Display results

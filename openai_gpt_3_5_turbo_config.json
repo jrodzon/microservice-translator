@@ -1,7 +1,7 @@
 {
   "base_url": "http://localhost:8000",
-  "timeout": 60,
-  "startup_timeout": 120,
+  "timeout": 600,
+  "startup_timeout": 600,
   "shutdown_timeout": 30,
   "check_interval": 2,
   "output_file": "test_results.json",
@@ -13,12 +13,12 @@
   },
   "llm_provider": {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": "gpt-3.5-turbo",
     "api_key": "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",
     "base_url": null,
-    "max_tokens": 4000,
+    "max_tokens": 20000,
     "temperature": 0.1,
-    "timeout": 60
+    "timeout": 600
   },
   "translation": {
     "method": "batch",
@@ -29,6 +29,8 @@
     "auto_save_interval": 3,
     "retry_on_error": true,
     "max_retries": 3,
-    "retry_delay": 1.0
+    "retry_delay": 1.0,
+    "enable_auto_testing": true,
+    "test_cases_path": "input/test_cases.json"
   }
 }
