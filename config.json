@@ -14,7 +14,7 @@
   "llm_provider": {
     "provider": "openai",
     "model": "gpt-5",
-    "api_key": "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",
+    "api_key": "",
     "base_url": null
   },
   "translation": {

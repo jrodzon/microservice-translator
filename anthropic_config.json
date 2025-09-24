@@ -14,7 +14,7 @@
   "llm_provider": {
     "provider": "anthropic",
     "model": "claude-opus-4-20250514",
-    "api_key": "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",
+    "api_key": "",
     "base_url": null,
     "max_tokens": 32000,
     "temperature": 0.1,
